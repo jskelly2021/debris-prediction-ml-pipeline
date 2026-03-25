@@ -1,3 +1,4 @@
+
 import pandas as pd
 import numpy as np
 
@@ -19,7 +20,7 @@ class Splits:
     y_reg_test: pd.DataFrame
 
 
-def make_train_val_test_splits(X, y_class, y_reg, labels, apply_smote, holdout_size=0.2, random_state=12):
+def make_train_val_test_splits(X, y_class, y_reg, labels, holdout_size=0.2, random_state=12):
     print("Creating train/val/test splits...")
 
     stratify_labels = y_class[labels[0]].astype(str)
@@ -131,7 +132,6 @@ def load_preprocess_split_data(
         class_target_cols,
         reg_target_cols,
         drop_cols,
-        apply_smote=False,
         add_labels=False,
         categorical_candidates=None,
         holdout_size=0.2,
@@ -156,7 +156,6 @@ def load_preprocess_split_data(
         y_class,
         y_reg,
         labels=class_target_cols,
-        apply_smote=apply_smote,
         holdout_size=holdout_size,
         random_state=random_state
     )

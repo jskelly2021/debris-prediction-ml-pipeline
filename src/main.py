@@ -3,7 +3,7 @@ import argparse
 
 from pathlib import Path
 from models import build_class_model, build_reg_model
-from TwoHeadDebrisModel import TwoHeadDebrisModel
+from two_head_pipeline import TwoHeadDebrisModel
 from preprocessing import load_preprocess_split_data
 from metrics import show_metrics
 

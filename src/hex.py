@@ -1,16 +1,17 @@
 
 import argparse
 
-from models import build_class_model, build_reg_model
-from TwoHeadDebrisModel import TwoHeadDebrisModel
+from xgboost import XGBClassifier, XGBRegressor
+from plots import save_dashboard
+from two_head_pipeline import ParamTuningMode, TwoHeadPipeline
 from preprocessing import load_preprocess_split_data
-from metrics import show_metrics
+from metrics import compute_classification_metrics, compute_regression_metrics
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train two-head XGBoost model")
     parser.add_argument("data_path", type=str, help="Path to dataset")
-    parser.add_argument("--output_dir", type=str, default="output", help="Directory to save trained models and metrics")
+    parser.add_argument("--output_dir", type=str, default="outputs", help="Directory to save trained models and metrics")
     parser.add_argument("--no_plots", action="store_true", help="Whether to skip saving plots")
     return parser.parse_args()
 
@@ -42,9 +43,16 @@ def main():
         add_labels=True,
     )
 
-    X_train = splits.X_train
-    X_val = splits.X_val
-    X_test = splits.X_test
+    reg_params = {
+        "n_estimators": [100, 300, 1000],
+        "learning_rate": [0.03, 0.05, 0.1],
+        "max_depth": [3, 6, 9],
+        "min_child_weight": [1, 3],
+        "subsample": [0.6, 0.8, 1.0],
+        "colsample_bytree": [0.6, 0.8, 1.0],
+        "reg_alpha": [0.0, 0.1, 1.0],
+        "reg_lambda": [0.0, 0.1, 1.0],
+    }
 
     debris_types = ["VG", "CD"]
 
@@ -53,44 +61,67 @@ def main():
         print(f"Processing {debris_type}")
         print("=" * 40)
 
-        y_class_train = splits.y_class_train[class_target_cols[i]]
-        y_reg_train = splits.y_reg_train[reg_target_cols[i]]
-        y_class_val = splits.y_class_val[class_target_cols[i]]
-        y_reg_val = splits.y_reg_val[reg_target_cols[i]]
-        y_class_test = splits.y_class_test[class_target_cols[i]]
-        y_reg_test = splits.y_reg_test[reg_target_cols[i]]
+        neg_count = (splits.y_class_train[class_target_cols[0]] == 0).sum()
+        pos_count = (splits.y_class_train[class_target_cols[0]] == 1).sum()
+        scale_pos_weight = neg_count / pos_count if pos_count > 0 else 1.0
 
-        classifier = build_class_model(y_class_train)
-        regressor = build_reg_model()
+        class_params = {
+            "n_estimators": [100, 300, 1000],
+            "learning_rate": [0.03, 0.05, 0.1],
+            "max_depth": [3, 6, 9],
+            "min_child_weight": [1, 3],
+            "subsample": [0.6, 0.8, 1.0],
+            "colsample_bytree": [0.6, 0.8, 1.0],
+            "reg_alpha": [0.0, 0.1, 1.0],
+            "reg_lambda": [0.0, 0.1, 1.0],
+            "scale_pos_weight": [scale_pos_weight],
+        }
 
-        model = TwoHeadDebrisModel(
+        classifier = XGBClassifier(objective="binary:logistic", eval_metric="auc", tree_method="hist", n_jobs=-1)
+        regressor = XGBRegressor(objective="reg:squarederror", tree_method="hist", n_jobs=-1)
+
+        pipeline = TwoHeadPipeline(
             classifier=classifier,
             regressor=regressor,
-            tune_hyperparams=True,
+            class_param_dist=class_params,
+            reg_param_dist=reg_params,
+            apply_smote=True,
             log_regression_target=True,
             positive_only_regression=True
         )
 
-        model.train(
-            X_train,
-            y_class_train,
-            y_reg_train,
-            X_val,
-            y_class_val,
-            y_reg_val,
+        pipeline.train(
+            splits,
+            class_target_cols[i],
+            reg_target_cols[i],
+            class_tune_mode=ParamTuningMode.NONE,
+            reg_tune_mode=ParamTuningMode.NONE
         )
 
-        preds = model.predict(X_test)
-        show_metrics(
-            preds=preds,
-            y_class_test=y_class_test,
-            y_reg_test=y_reg_test,
-            X_train=X_train,
-            model=model,
-            debris_type=debris_type,
-            output_dir=args.output_dir,
-            show_plots=not args.no_plots
+        preds = pipeline.predict(splits.X_test)
+
+        class_metrics = compute_classification_metrics(
+            splits.y_class_test[class_target_cols[i]],
+            preds.class_pred,
+            preds.class_prob
         )
+        reg_metrics = compute_regression_metrics(
+            splits.y_reg_test[reg_target_cols[i]],
+            preds.reg_pred
+        )
+        class_metrics.print(f"{debris_type} Debris")
+        reg_metrics.print(f"{debris_type} Debris")
+
+        if not args.no_plots:
+            save_dashboard(
+                preds=preds,
+                splits=splits,
+                model=pipeline,
+                class_target_col=class_target_cols[i],
+                reg_target_col=reg_target_cols[i],
+                debris_type=debris_type,
+                output_dir=args.output_dir,
+            )
 
 if __name__ == "__main__":
     main()

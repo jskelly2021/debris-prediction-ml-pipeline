@@ -1,3 +1,4 @@
+
 from xgboost import XGBClassifier, XGBRegressor
 
 
@@ -10,16 +11,16 @@ def build_class_model(y_train) -> XGBClassifier:
     params = {
         "objective": "binary:logistic",
         "eval_metric": "auc",
-        "n_estimators": [100, 1000],
-        "learning_rate": [0.01, 0.05, 0.1],
-        "max_depth": [3, 6, 9],
-        "min_child_weight": [1, 3, 5],
-        "subsample": [0.6, 0.8, 1.0],
-        "colsample_bytree": [0.6, 0.8, 1.0],
-        "reg_alpha": [0.0, 0.1, 1.0],
-        "reg_lambda": [1.0, 10.0],
-        "scale_pos_weight": [scale_pos_weight],
-        "random_state": [12],
+        "n_estimators": 1000,
+        "learning_rate": 0.05,
+        "max_depth": 6,
+        "min_child_weight": 3,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0.0,
+        "reg_lambda": 1.0,
+        "scale_pos_weight": scale_pos_weight,
+        "random_state": 12,
         "tree_method": ["hist"]
     }
 
@@ -32,15 +33,15 @@ def build_reg_model() -> XGBRegressor:
 
     params = {
         "objective": "reg:squarederror",
-        "n_estimators": [100, 1000],
-        "learning_rate": [0.01, 0.05, 0.1],
-        "max_depth": [3, 6, 9],
-        "min_child_weight": [1, 3, 5],
-        "subsample": [0.6, 0.8, 1.0],
-        "colsample_bytree": [0.6, 0.8, 1.0],
-        "reg_alpha": [0.0, 0.1, 1.0],
-        "reg_lambda": [1.0, 10.0],
-        "random_state": [12],
+        "n_estimators": 1000,
+        "learning_rate": 0.05,
+        "max_depth": 6,
+        "min_child_weight": 3,
+        "subsample": 0.8,
+        "colsample_bytree": 0.8,
+        "reg_alpha": 0.0,
+        "reg_lambda": 1.0,
+        "random_state": 12,
         "tree_method": ["hist"]
     }
 

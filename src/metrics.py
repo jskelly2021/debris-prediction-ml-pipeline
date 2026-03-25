@@ -1,16 +1,12 @@
-from pathlib import Path
-from dataclasses import dataclass
 
-import matplotlib.pyplot as plt
 import numpy as np
+
+from dataclasses import dataclass
 from sklearn.metrics import (
-    ConfusionMatrixDisplay,
     accuracy_score,
-    auc,
     f1_score,
     mean_absolute_error,
     mean_squared_error,
-    precision_recall_curve,
     precision_score,
     r2_score,
     recall_score,
