@@ -40,29 +40,42 @@ def tune_threshold(y_true, y_prob):
     return best_threshold, best_f1
 
 
-def apply_smote_to_single_label(X_train, y_train, random_state=12, k_neighbors=5):
+def apply_smote_single_label(X_train, y_train, label_name, random_state=12, k_neighbors=5):
     X_train = X_train.copy()
-    y_train = y_train.copy()
+    y_train = pd.Series(y_train).copy()
 
-    X_train = X_train.fillna(0)
+    print("\n" + "-" * 60)
+    print(f"SMOTE REPORT FOR {label_name}")
+    print("-" * 60)
 
-    minority_count = int((y_train == 1).sum())
-    if minority_count < 2:
+    before_pos = int((y_train == 1).sum())
+    before_neg = int((y_train == 0).sum())
+    print(f"Before SMOTE: X shape={X_train.shape}, pos={before_pos}, neg={before_neg}")
+
+    if before_pos < 2:
         print("Skipping SMOTE: not enough minority samples.")
         return X_train, y_train
 
-    k = min(k_neighbors, minority_count - 1)
+    X_train = X_train.fillna(0)
+
+    k = min(k_neighbors, before_pos - 1)
     if k < 1:
-        print("Skipping SMOTE: not enough minority samples for neighbors.")
+        print("Skipping SMOTE: k_neighbors would be invalid.")
         return X_train, y_train
 
     smote = SMOTE(random_state=random_state, k_neighbors=k)
-    X_resampled, y_resampled = smote.fit_resample(X_train, y_train)
+    X_res, y_res = smote.fit_resample(X_train, y_train)
 
-    X_resampled = pd.DataFrame(X_resampled, columns=X_train.columns)
-    y_resampled = pd.Series(y_resampled, name=y_train.name)
+    X_res = pd.DataFrame(X_res, columns=X_train.columns)
+    y_res = pd.Series(y_res, name=y_train.name)
 
-    return X_resampled, y_resampled
+    after_pos = int((y_res == 1).sum())
+    after_neg = int((y_res == 0).sum())
+    print(f"After  SMOTE: X shape={X_res.shape}, pos={after_pos}, neg={after_neg}")
+    print(f"Added samples: {len(X_res) - len(X_train)}")
+    print("-" * 60 + "\n")
+
+    return X_res, y_res
 
 
 class TwoHeadPipeline:
@@ -93,6 +106,15 @@ class TwoHeadPipeline:
 
         X_train_cls = splits.X_train
         y_train_cls = splits.y_class_train[class_target_col]
+
+        if self.apply_smote:
+            X_train_cls, y_train_cls = apply_smote_single_label(
+                X_train_cls,
+                y_train_cls,
+                label_name=class_target_col,
+                random_state=12,
+                k_neighbors=5
+            )
 
         start = time.perf_counter()
 
@@ -125,14 +147,6 @@ class TwoHeadPipeline:
             print(f"Best classifier params: {search.best_params_}")
 
         elif tune_mode == ParamTuningMode.NONE:
-            if self.apply_smote:
-                X_train_cls, y_train_cls = apply_smote_to_single_label(
-                    X_train_cls,
-                    y_train_cls,
-                    random_state=12,
-                    k_neighbors=5
-                )
-
             self.head1.fit(
                 X_train_cls,
                 y_train_cls,

@@ -20,6 +20,51 @@ class Splits:
     y_reg_test: pd.DataFrame
 
 
+def _print_binary_label_breakdown(y_df, split_name):
+    print(f"\n{split_name} label breakdown:")
+    for col in y_df.columns:
+        y = y_df[col]
+        total = len(y)
+        pos = int((y == 1).sum())
+        neg = int((y == 0).sum())
+        pos_rate = pos / total if total > 0 else 0.0
+
+        print(
+            f"  {col}: "
+            f"n={total}, pos={pos}, neg={neg}, pos_rate={pos_rate:.4f}"
+        )
+
+
+def _print_multilabel_combo_breakdown(y_df, split_name):
+    combo = y_df.astype(str).agg("_".join, axis=1)
+    combo_counts = combo.value_counts().sort_index()
+
+    print(f"\n{split_name} multilabel combo breakdown:")
+    for combo_name, count in combo_counts.items():
+        pct = count / len(combo) if len(combo) > 0 else 0.0
+        print(f"  {combo_name}: {count} ({pct:.4%})")
+
+
+def print_split_breakdown(splits):
+    print("\n" + "=" * 60)
+    print("TRAIN / VAL / TEST SPLIT BREAKDOWN")
+    print("=" * 60)
+
+    print(f"X_train shape: {splits.X_train.shape}")
+    print(f"X_val   shape: {splits.X_val.shape}")
+    print(f"X_test  shape: {splits.X_test.shape}")
+
+    _print_binary_label_breakdown(splits.y_class_train, "TRAIN")
+    _print_binary_label_breakdown(splits.y_class_val, "VAL")
+    _print_binary_label_breakdown(splits.y_class_test, "TEST")
+
+    _print_multilabel_combo_breakdown(splits.y_class_train, "TRAIN")
+    _print_multilabel_combo_breakdown(splits.y_class_val, "VAL")
+    _print_multilabel_combo_breakdown(splits.y_class_test, "TEST")
+
+    print("=" * 60 + "\n")
+
+
 def make_train_val_test_splits(X, y_class, y_reg, labels, holdout_size=0.2, random_state=12):
     print("Creating train/val/test splits...")
 
@@ -45,9 +90,7 @@ def make_train_val_test_splits(X, y_class, y_reg, labels, holdout_size=0.2, rand
         stratify=temp_stratify
     )
 
-    print(f"Train/Val/Test splits complete: ")
-
-    return Splits(
+    splits = Splits(
         X_train=X.loc[train_idx],
         X_val=X.loc[val_idx],
         X_test=X.loc[test_idx],
@@ -58,6 +101,11 @@ def make_train_val_test_splits(X, y_class, y_reg, labels, holdout_size=0.2, rand
         y_reg_val=y_reg.loc[val_idx],
         y_reg_test=y_reg.loc[test_idx],
     )
+
+    print(f"Train/Val/Test splits complete: ")
+    print_split_breakdown(splits)
+
+    return splits
 
 
 def preprocess_features(df, drop_cols, categorical_candidates=None):

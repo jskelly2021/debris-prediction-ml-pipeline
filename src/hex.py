@@ -1,4 +1,5 @@
 
+import numpy as np
 import argparse
 
 from xgboost import XGBClassifier, XGBRegressor
@@ -28,6 +29,32 @@ def get_config():
     ]
 
     return class_target_cols, reg_target_cols, drop_cols
+
+
+def print_metrics(splits, preds, class_target_col, reg_target_col, debris_type):
+    y_class_test = np.asarray(splits.y_class_test[class_target_col])
+    y_reg_test = np.asarray(splits.y_reg_test[reg_target_col])
+    y_reg_pred = np.asarray(preds.reg_pred)
+
+    positive_mask = (y_class_test == 1)
+
+    class_metrics = compute_classification_metrics(
+        splits.y_class_test[class_target_col],
+        preds.class_pred,
+        preds.class_prob
+    )
+    reg_metrics = compute_regression_metrics(
+        splits.y_reg_test[reg_target_col],
+        preds.reg_pred
+    )
+    if positive_mask.sum() > 0:
+        pos_reg_metrics = compute_regression_metrics(
+            y_reg_test[positive_mask],
+            y_reg_pred[positive_mask],
+        )
+    class_metrics.print(f"{debris_type} Debris")
+    reg_metrics.print(f"{debris_type} Debris")
+    pos_reg_metrics.print(f"{debris_type.upper()} Positive-Only Volume")
 
 
 def main():
@@ -74,7 +101,7 @@ def main():
             "colsample_bytree": [0.6, 0.8, 1.0],
             "reg_alpha": [0.0, 0.1, 1.0],
             "reg_lambda": [0.0, 0.1, 1.0],
-            "scale_pos_weight": [scale_pos_weight],
+            # "scale_pos_weight": [scale_pos_weight],
         }
 
         classifier = XGBClassifier(objective="binary:logistic", eval_metric="auc", tree_method="hist", n_jobs=-1)
@@ -100,17 +127,7 @@ def main():
 
         preds = pipeline.predict(splits.X_test)
 
-        class_metrics = compute_classification_metrics(
-            splits.y_class_test[class_target_cols[i]],
-            preds.class_pred,
-            preds.class_prob
-        )
-        reg_metrics = compute_regression_metrics(
-            splits.y_reg_test[reg_target_cols[i]],
-            preds.reg_pred
-        )
-        class_metrics.print(f"{debris_type} Debris")
-        reg_metrics.print(f"{debris_type} Debris")
+        print_metrics(splits, preds, class_target_cols[i], reg_target_cols[i], debris_type)
 
         if not args.no_plots:
             save_dashboard(
