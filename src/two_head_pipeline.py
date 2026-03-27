@@ -85,7 +85,10 @@ class TwoHeadPipeline:
         regressor=None,
         class_param_dist=None,
         reg_param_dist=None,
+        class_default_params=None,
+        reg_default_params=None,
         apply_smote=False,
+        apply_scale_pos_weight=False,
         log_regression_target=False,
         positive_only_regression=False
     ):
@@ -93,7 +96,10 @@ class TwoHeadPipeline:
         self.head2 = regressor
         self.class_param_dist = class_param_dist
         self.reg_param_dist = reg_param_dist
+        self.class_default_params = class_default_params or {}
+        self.reg_default_params = reg_default_params or {}
         self.apply_smote = apply_smote
+        self.apply_scale_pos_weight = apply_scale_pos_weight
         self.threshold = 0.5
         self.best_f1 = None
         self.log_regression_target = log_regression_target
@@ -106,6 +112,21 @@ class TwoHeadPipeline:
 
         X_train_cls = splits.X_train
         y_train_cls = splits.y_class_train[class_target_col]
+
+        neg_count = (y_train_cls == 0).sum()
+        pos_count = (y_train_cls == 1).sum()
+
+        if pos_count > 0:
+            scale_pos_weight = neg_count / pos_count
+        else:
+            scale_pos_weight = 1.0
+
+        if tune_mode == ParamTuningMode.NONE:
+            self.head1.set_params(**self.class_default_params)
+
+        if self.apply_scale_pos_weight:
+            self.head1.set_params(scale_pos_weight=scale_pos_weight)
+            print(f"Applied scale_pos_weight={scale_pos_weight:.2f} to classifier.")
 
         if self.apply_smote:
             X_train_cls, y_train_cls = apply_smote_single_label(
@@ -123,7 +144,7 @@ class TwoHeadPipeline:
             search = RandomizedSearchCV(
                 estimator=self.head1,
                 param_distributions=self.class_param_dist,
-                n_iter=20,
+                n_iter=10,
                 scoring="roc_auc",
                 cv=3,
                 n_jobs=-1,
@@ -157,7 +178,7 @@ class TwoHeadPipeline:
         end = time.perf_counter()
 
         print("Classifier training complete.")
-        print(f"Training time: {end - start:.2f} seconds\n")
+        print(f"Training time: {end - start:.2f} seconds")
 
         y_val_prob = self.head1.predict_proba(splits.X_val)[:, 1]
         self.threshold, self.best_f1 = tune_threshold(splits.y_class_val[class_target_col], y_val_prob)
@@ -185,6 +206,12 @@ class TwoHeadPipeline:
         if self.log_regression_target:
             y_train_reg = np.log1p(y_train_reg)
             y_val_reg = np.log1p(y_val_reg)
+
+        if len(X_train_reg) == 0:
+            print(f"Skipping regressor for {reg_target_col}: no positive training rows.")
+            self.head2 = None
+            self.is_fitted = True
+            return
 
         start = time.perf_counter()
 
@@ -217,6 +244,7 @@ class TwoHeadPipeline:
             print(f"Best regressor params: {search.best_params_}")
 
         elif tune_mode == ParamTuningMode.NONE:
+            self.head2.set_params(**self.reg_default_params)
             self.head2.fit(
                 X_train_reg,
                 y_train_reg,
@@ -227,7 +255,7 @@ class TwoHeadPipeline:
         end = time.perf_counter()
 
         print("Regressor training complete.")
-        print(f"Training time: {end - start:.2f} seconds\n")
+        print(f"Training time: {end - start:.2f} seconds")
 
         self.is_fitted = True
 
@@ -250,10 +278,13 @@ class TwoHeadPipeline:
 
         y_prob = self.head1.predict_proba(X)[:, 1]
         y_class = (y_prob >= self.threshold).astype(int)
-        y_reg = self.head2.predict(X)
 
-        if self.log_regression_target:
-            y_reg = np.expm1(y_reg)
+        if self.head2 is None:
+            y_reg = np.zeros(len(X))
+        else:
+            y_reg = self.head2.predict(X)
+            if self.log_regression_target:
+                y_reg = np.expm1(y_reg)
 
         y_expected = y_prob * y_reg
 
@@ -263,3 +294,13 @@ class TwoHeadPipeline:
             reg_pred=y_reg,
             expected_volume_pred=y_expected
         )
+
+
+    def predict_df(self, X, prefix):
+        preds = self.predict(X)
+        return pd.DataFrame({
+            f"{prefix}_class_prob": preds.class_prob,
+            f"{prefix}_class_pred": preds.class_pred,
+            f"{prefix}_reg_pred": preds.reg_pred,
+            f"{prefix}_expected_volume_pred": preds.expected_volume_pred,
+        }, index=X.index)

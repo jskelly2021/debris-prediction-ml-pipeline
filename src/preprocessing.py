@@ -151,11 +151,7 @@ def preprocess_data(df, class_target_cols, reg_target_cols, drop_cols, categoric
     y_class = df[class_target_cols].copy()
     y_reg = df[reg_target_cols].copy()
 
-    print(f"Preprocessing complete")
-    print(f"Final feature set shape: {X_encoded.shape}")
-    print(f"Classification target shape: {y_class.shape}")
-    print(f"Regression target shape: {y_reg.shape}\n")
-
+    print(f"Preprocessing complete\n")
     return X_encoded, y_class, y_reg
 
 
@@ -183,7 +179,8 @@ def load_preprocess_split_data(
         add_labels=False,
         categorical_candidates=None,
         holdout_size=0.2,
-        random_state=12
+        random_state=12,
+        verbose=False
     ):
 
     df = load_data(data_path)

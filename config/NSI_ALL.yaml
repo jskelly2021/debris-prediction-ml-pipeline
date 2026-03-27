@@ -1,0 +1,24 @@
+
+def get_config(block_level: bool):
+    if block_level:
+        class_target_cols = ["has_veg_debris", "has_con_debris"]
+        reg_target_cols = ["veg_volume_sum", "con_volume_sum"]
+
+        drop_cols = [
+            "fd_id", "cbfips", "cbgfips",
+            "volume_count", "volume_sum", "volume_mean", "volume_median", "debris_majority",
+            "veg_volume_count", "veg_volume_sum", "veg_volume_mean", "veg_volume_median",
+            "con_volume_count", "con_volume_sum", "con_volume_mean", "con_volume_median",
+            "has_veg_debris", "has_con_debris"
+        ]
+    else:
+        class_target_cols = ["has_veg_debris", "has_con_debris"]
+        reg_target_cols = ["veg_volume", "con_volume"]
+
+        drop_cols = [
+            "fd_id", "cbfips", "cbgfips",
+            "veg_volume", "con_volume",
+            "has_veg_debris", "has_con_debris"
+        ]
+
+    return class_target_cols, reg_target_cols, drop_cols

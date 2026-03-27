@@ -25,7 +25,20 @@ class ClassificationMetrics:
     f1: float
     roc_auc: float
 
+    def to_dict(self):
+        return {
+            "positive_rate": self.positive_rate,
+            "n_samples": self.n_samples,
+            "n_positive": self.n_positive,
+            "accuracy": self.accuracy,
+            "precision": self.precision,
+            "recall": self.recall,
+            "f1": self.f1,
+            "roc_auc": self.roc_auc,
+        }
+
     def print(self, label):
+        print()
         print(f"=== {label} Classification Metrics ===")
         print(f"Positive Rate: {self.positive_rate}")
         print(f"N Samples    : {self.n_samples}")
@@ -44,6 +57,14 @@ class RegressionMetrics:
     rmse: float
     mae: float
     r2: float
+
+    def to_dict(self):
+        return {
+            "n_samples": self.n_samples,
+            "rmse": self.rmse,
+            "mae": self.mae,
+            "r2": self.r2,
+        }
 
     def print(self, label):
         print(f"=== {label} Regression Metrics ===")
