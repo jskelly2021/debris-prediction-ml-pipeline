@@ -9,10 +9,6 @@ reg_target_cols:
   - VolVG_sum
   - VolCD_sum
 
-label_names:
-  - VG
-  - CD
-
 drop_cols:
   - OBJECTID
   - GRID_ID
@@ -24,6 +20,15 @@ drop_cols:
   - VolVG_sum
   - has_VG_debris
   - has_CD_debris
+
+label_names:
+  - VG
+  - CD
+
+smote: true
+scale_pos_weight: false
+log_regression_target: true
+positive_only_regression: true
 
 class_params_dist:
   n_estimators: [200, 600, 1000]

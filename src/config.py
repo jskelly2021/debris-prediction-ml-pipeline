@@ -12,6 +12,10 @@ class TrainConfig:
     reg_target_cols: list[str]
     drop_cols: list[str]
     label_names: list[str]
+    smote: bool = False
+    scale_pos_weight: bool = False
+    log_regression_target: bool = False
+    positive_only_regression: bool = False
 
     class_params_dist: dict = field(default_factory=dict)
     reg_params_dist: dict = field(default_factory=dict)

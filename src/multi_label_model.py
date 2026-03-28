@@ -1,7 +1,7 @@
 
 import pandas as pd
 
-from two_head_pipeline import TuneMode
+from two_head_pipeline import TuneMode, TwoHeadPipeline
 from metrics import compute_classification_metrics, compute_regression_metrics
 from config import TrainConfig
 from split import Splits
@@ -15,13 +15,12 @@ class MultiLabelModel:
     def __init__(
         self,
         trainConfig: TrainConfig,
-        pipeline_factory,
         verbose=False
     ):
         if len(trainConfig.class_target_cols) != len(trainConfig.reg_target_cols):
             raise ValueError("class_target_cols and reg_target_cols must have the same length.")
 
-        self.pipeline_factory = pipeline_factory
+        self.trainConfig = trainConfig
         self.class_target_cols = trainConfig.class_target_cols
         self.reg_target_cols = trainConfig.reg_target_cols
         self.label_names = trainConfig.label_names or trainConfig.reg_target_cols
@@ -42,7 +41,9 @@ class MultiLabelModel:
 
             log.h1(f"TRAINING MODEL FOR LABEL: {label_name}")
 
-            pipeline = self.pipeline_factory()
+            pipeline = TwoHeadPipeline(
+                pipelineConfig=self.trainConfig
+            )
 
             pipeline.train(
                 splits=splits,
