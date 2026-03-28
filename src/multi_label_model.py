@@ -1,48 +1,46 @@
 
 import pandas as pd
 
-from src.two_head_pipeline import TwoHeadPipeline, ParamTuningMode
-from src.metrics import compute_classification_metrics, compute_regression_metrics
+from two_head_pipeline import TuneMode
+from metrics import compute_classification_metrics, compute_regression_metrics
+from config import TrainConfig
+from split import Splits
+from logger import Log
+
+
+log = Log()
 
 
 class MultiLabelModel:
     def __init__(
         self,
+        trainConfig: TrainConfig,
         pipeline_factory,
-        class_target_cols,
-        reg_target_cols,
-        label_names=None,
         verbose=False
     ):
-        if len(class_target_cols) != len(reg_target_cols):
+        if len(trainConfig.class_target_cols) != len(trainConfig.reg_target_cols):
             raise ValueError("class_target_cols and reg_target_cols must have the same length.")
 
         self.pipeline_factory = pipeline_factory
-        self.class_target_cols = class_target_cols
-        self.reg_target_cols = reg_target_cols
-        self.label_names = label_names or reg_target_cols
+        self.class_target_cols = trainConfig.class_target_cols
+        self.reg_target_cols = trainConfig.reg_target_cols
+        self.label_names = trainConfig.label_names or trainConfig.reg_target_cols
         self.verbose = verbose
-
         self.models = {}
         self.is_fitted = False
 
 
     def fit(
         self,
-        splits,
-        class_tune_mode=ParamTuningMode.NONE,
-        reg_tune_mode=ParamTuningMode.NONE
+        splits: Splits,
+        class_tune_mode: TuneMode=TuneMode.NONE,
+        reg_tune_mode: TuneMode=TuneMode.NONE
     ):
         for i, label_name in enumerate(self.label_names):
             class_col = self.class_target_cols[i]
             reg_col = self.reg_target_cols[i]
 
-            if self.verbose:
-                print("\n" + "=" * 60)
-                print(f"TRAINING LABEL: {label_name}")
-                print(f"class target: {class_col}")
-                print(f"reg target  : {reg_col}")
-                print("=" * 60)
+            log.h1(f"TRAINING MODEL FOR LABEL: {label_name}")
 
             pipeline = self.pipeline_factory()
 
@@ -125,19 +123,16 @@ class MultiLabelModel:
             raise ValueError("No metrics available. Run evaluate() first.")
 
         for label_name, label_metrics in metrics.items():
-            print("\n" + "=" * 60)
-            print(f"METRICS FOR {label_name}")
-            print("=" * 60)
+            log.h1(f"METRICS FOR {label_name}")
 
             label_metrics["classification"].print(label_name)
-
             label_metrics["regression_all"].print(f"{label_name} Overall Expected Volume")
 
             pos_metrics = label_metrics["regression_positive_only"]
             if pos_metrics is not None:
                 pos_metrics.print(f"{label_name} Positive-Only Volume")
             else:
-                print(f"No positive-only regression metrics available for {label_name}.")
+                log.warn(f"No positive-only regression metrics available for {label_name}.")
 
 
     def metrics_to_dataframe(self, metrics=None):

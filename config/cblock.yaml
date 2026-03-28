@@ -1,29 +1,35 @@
-data_path: data/hex9.csv
-output_path: outputs/hex9
+data_path: data/CBLOCK_AGG_DEBRIS_2_TRGT.csv
+output_path: output/CBLOCK_AGG_DEBRIS_2_TRGT
 
 class_target_cols:
-  - has_VG_debris
-  - has_CD_debris
+  - has_veg_debris
+  - has_con_debris
 
 reg_target_cols:
-  - VolVG_sum
-  - VolCD_sum
+  - veg_volume_sum
+  - con_volume_sum
 
 label_names:
   - VG
   - CD
 
 drop_cols:
-  - OBJECTID
-  - GRID_ID
-  - VolCD
-  - VolCD_med
-  - VolCD_sum
-  - VolVG
-  - VolVG_med
-  - VolVG_sum
-  - has_VG_debris
-  - has_CD_debris
+  - fd_id
+  - cbfips
+  - cbgfips
+  - volume_count
+  - volume_sum
+  - volume_mean
+  - volume_median
+  - debris_majority
+  - veg_volume_count
+  - veg_volume_mean
+  - veg_volume_median
+  - con_volume_count
+  - con_volume_mean
+  - con_volume_median
+  - has_veg_debris
+  - has_con_debris
 
 class_params_dist:
   n_estimators: [200, 600, 1000]

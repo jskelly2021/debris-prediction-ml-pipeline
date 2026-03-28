@@ -8,6 +8,10 @@ from enum import Enum
 from dataclasses import dataclass
 from sklearn.metrics import f1_score
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+from logger import Log
+
+
+log = Log()
 
 
 @dataclass
@@ -18,7 +22,7 @@ class Preds:
     expected_volume_pred: np.ndarray
 
 
-class ParamTuningMode(Enum):
+class TuneMode(Enum):
     NONE = 0
     RANDOM_SEARCH = 1
     GRID_SEARCH = 2
@@ -44,23 +48,21 @@ def apply_smote_single_label(X_train, y_train, label_name, random_state=12, k_ne
     X_train = X_train.copy()
     y_train = pd.Series(y_train).copy()
 
-    print("\n" + "-" * 60)
-    print(f"SMOTE REPORT FOR {label_name}")
-    print("-" * 60)
+    log.h2(f"SMOTE REPORT FOR {label_name}")
 
     before_pos = int((y_train == 1).sum())
     before_neg = int((y_train == 0).sum())
-    print(f"Before SMOTE: X shape={X_train.shape}, pos={before_pos}, neg={before_neg}")
+    log.body(f"Before SMOTE: X shape={X_train.shape}, pos={before_pos}, neg={before_neg}")
 
     if before_pos < 2:
-        print("Skipping SMOTE: not enough minority samples.")
+        log.warn("Skipping SMOTE: not enough minority samples.")
         return X_train, y_train
 
     X_train = X_train.fillna(0)
 
     k = min(k_neighbors, before_pos - 1)
     if k < 1:
-        print("Skipping SMOTE: k_neighbors would be invalid.")
+        log.warn("Skipping SMOTE: k_neighbors would be invalid.")
         return X_train, y_train
 
     smote = SMOTE(random_state=random_state, k_neighbors=k)
@@ -71,9 +73,8 @@ def apply_smote_single_label(X_train, y_train, label_name, random_state=12, k_ne
 
     after_pos = int((y_res == 1).sum())
     after_neg = int((y_res == 0).sum())
-    print(f"After  SMOTE: X shape={X_res.shape}, pos={after_pos}, neg={after_neg}")
-    print(f"Added samples: {len(X_res) - len(X_train)}")
-    print("-" * 60 + "\n")
+    log.body(f"After  SMOTE: X shape={X_res.shape}, pos={after_pos}, neg={after_neg}")
+    log.body(f"Added samples: {len(X_res) - len(X_train)}")
 
     return X_res, y_res
 
@@ -108,7 +109,7 @@ class TwoHeadPipeline:
 
 
     def train_classifier(self, splits, class_target_col, tune_mode):
-        print("Training Classifier...")
+        log.info("Training Classifier...")
 
         X_train_cls = splits.X_train
         y_train_cls = splits.y_class_train[class_target_col]
@@ -121,7 +122,7 @@ class TwoHeadPipeline:
         else:
             scale_pos_weight = 1.0
 
-        if tune_mode == ParamTuningMode.NONE:
+        if tune_mode == TuneMode.NONE:
             self.head1.set_params(**self.class_default_params)
 
         if self.apply_scale_pos_weight:
@@ -139,8 +140,8 @@ class TwoHeadPipeline:
 
         start = time.perf_counter()
 
-        if tune_mode == ParamTuningMode.RANDOM_SEARCH:
-            print("Beginning RandomizedSearch hyperparameter tuning for classifier...")
+        if tune_mode == TuneMode.RANDOM_SEARCH:
+            log.info("Beginning RandomizedSearch hyperparameter tuning for classifier...")
             search = RandomizedSearchCV(
                 estimator=self.head1,
                 param_distributions=self.class_param_dist,
@@ -152,10 +153,10 @@ class TwoHeadPipeline:
             )
             search.fit(X_train_cls, y_train_cls)
             self.head1 = search.best_estimator_
-            print(f"Best classifier params: {search.best_params_}")
+            log.info(f"Best classifier params: {search.best_params_}")
 
-        elif tune_mode == ParamTuningMode.GRID_SEARCH:
-            print("Beginning GridSearch hyperparameter tuning for classifier...")
+        elif tune_mode == TuneMode.GRID_SEARCH:
+            log.info("Beginning GridSearch hyperparameter tuning for classifier...")
             search = GridSearchCV(
                 estimator=self.head1,
                 param_grid=self.class_param_dist,
@@ -165,9 +166,9 @@ class TwoHeadPipeline:
             )
             search.fit(X_train_cls, y_train_cls)
             self.head1 = search.best_estimator_
-            print(f"Best classifier params: {search.best_params_}")
+            log.info(f"Best classifier params: {search.best_params_}")
 
-        elif tune_mode == ParamTuningMode.NONE:
+        elif tune_mode == TuneMode.NONE:
             self.head1.fit(
                 X_train_cls,
                 y_train_cls,
@@ -177,17 +178,17 @@ class TwoHeadPipeline:
 
         end = time.perf_counter()
 
-        print("Classifier training complete.")
-        print(f"Training time: {end - start:.2f} seconds")
+        log.info("Classifier training complete.")
+        log.info(f"Training time: {end - start:.2f} seconds")
 
         y_val_prob = self.head1.predict_proba(splits.X_val)[:, 1]
         self.threshold, self.best_f1 = tune_threshold(splits.y_class_val[class_target_col], y_val_prob)
 
-        print(f"Chosen threshold: {self.threshold:.2f} (best F1 on validation: {self.best_f1:.4f})")
+        log.info(f"Chosen threshold: {self.threshold:.2f} (best F1 on validation: {self.best_f1:.4f})")
 
 
     def train_regressor(self, splits, class_target_col, reg_target_col, tune_mode):
-        print("Training Regressor...")
+        log.info("Training Regressor...")
 
         if self.positive_only_regression:
             train_mask = splits.y_class_train[class_target_col] == 1
@@ -208,15 +209,15 @@ class TwoHeadPipeline:
             y_val_reg = np.log1p(y_val_reg)
 
         if len(X_train_reg) == 0:
-            print(f"Skipping regressor for {reg_target_col}: no positive training rows.")
+            log.warn(f"Skipping regressor for {reg_target_col}: no positive training rows.")
             self.head2 = None
             self.is_fitted = True
             return
 
         start = time.perf_counter()
 
-        if tune_mode == ParamTuningMode.RANDOM_SEARCH:
-            print("Beginning RandomizedSearch hyperparameter tuning for regressor...")
+        if tune_mode == TuneMode.RANDOM_SEARCH:
+            log.info("Beginning RandomizedSearch hyperparameter tuning for regressor...")
             search = RandomizedSearchCV(
                 estimator=self.head2,
                 param_distributions=self.reg_param_dist,
@@ -228,10 +229,10 @@ class TwoHeadPipeline:
             )
             search.fit(X_train_reg, y_train_reg)
             self.head2 = search.best_estimator_
-            print(f"Best regressor params: {search.best_params_}")
+            log.info(f"Best regressor params: {search.best_params_}")
 
-        elif tune_mode == ParamTuningMode.GRID_SEARCH:
-            print("Beginning GridSearch hyperparameter tuning for regressor...")
+        elif tune_mode == TuneMode.GRID_SEARCH:
+            log.info("Beginning GridSearch hyperparameter tuning for regressor...")
             search = GridSearchCV(
                 estimator=self.head2,
                 param_grid=self.reg_param_dist,
@@ -241,9 +242,9 @@ class TwoHeadPipeline:
             )
             search.fit(X_train_reg, y_train_reg)
             self.head2 = search.best_estimator_
-            print(f"Best regressor params: {search.best_params_}")
+            log.info(f"Best regressor params: {search.best_params_}")
 
-        elif tune_mode == ParamTuningMode.NONE:
+        elif tune_mode == TuneMode.NONE:
             self.head2.set_params(**self.reg_default_params)
             self.head2.fit(
                 X_train_reg,
@@ -254,8 +255,8 @@ class TwoHeadPipeline:
 
         end = time.perf_counter()
 
-        print("Regressor training complete.")
-        print(f"Training time: {end - start:.2f} seconds")
+        log.info("Regressor training complete.")
+        log.info(f"Training time: {end - start:.2f} seconds")
 
         self.is_fitted = True
 
@@ -265,8 +266,8 @@ class TwoHeadPipeline:
         splits,
         class_target_col,
         reg_target_col,
-        class_tune_mode=ParamTuningMode.NONE,
-        reg_tune_mode=ParamTuningMode.NONE
+        class_tune_mode=TuneMode.NONE,
+        reg_tune_mode=TuneMode.NONE
     ):
         self.train_classifier(splits, class_target_col, class_tune_mode)
         self.train_regressor(splits, class_target_col, reg_target_col, reg_tune_mode)

@@ -1,5 +1,10 @@
 
 import numpy as np
+from logger import Log
+
+
+log = Log()
+
 
 from dataclasses import dataclass
 from sklearn.metrics import (
@@ -38,17 +43,15 @@ class ClassificationMetrics:
         }
 
     def print(self, label):
-        print()
-        print(f"=== {label} Classification Metrics ===")
-        print(f"Positive Rate: {self.positive_rate}")
-        print(f"N Samples    : {self.n_samples}")
-        print(f"N Positive   : {self.n_positive}")
-        print(f"Accuracy     : {self.accuracy}")
-        print(f"Precision    : {self.precision}")
-        print(f"Recall       : {self.recall}")
-        print(f"F1 Score     : {self.f1}")
-        print(f"ROC AUC      : {self.roc_auc}")
-        print()
+        log.h2(f"{label} Classification Metrics")
+        log.body(f"Positive Rate: {self.positive_rate}")
+        log.body(f"N Samples    : {self.n_samples}")
+        log.body(f"N Positive   : {self.n_positive}")
+        log.body(f"Accuracy     : {self.accuracy}")
+        log.body(f"Precision    : {self.precision}")
+        log.body(f"Recall       : {self.recall}")
+        log.body(f"F1 Score     : {self.f1}")
+        log.body(f"ROC AUC      : {self.roc_auc}")
 
 
 @dataclass
@@ -67,12 +70,11 @@ class RegressionMetrics:
         }
 
     def print(self, label):
-        print(f"=== {label} Regression Metrics ===")
-        print(f"N Samples: {self.n_samples}")
-        print(f"RMSE     : {self.rmse}")
-        print(f"MAE      : {self.mae}")
-        print(f"R²       : {self.r2}")
-        print()
+        log.h2(f"{label} Regression Metrics")
+        log.body(f"N Samples: {self.n_samples}")
+        log.body(f"RMSE     : {self.rmse}")
+        log.body(f"MAE      : {self.mae}")
+        log.body(f"R²       : {self.r2}")
 
 
 def compute_classification_metrics(y_true, y_pred, y_prob):

@@ -1,11 +1,12 @@
 
 import argparse
 
-from src.config import load_config
-from src.preprocessing import load_preprocess_split_data
-from src.plots import save_multilabel_dashboards
-from src.two_head_pipeline import ParamTuningMode, TwoHeadPipeline
-from src.multi_label_model import MultiLabelModel
+from config import load_config
+from preprocess import load_preprocess_split_data
+from plots import save_multilabel_dashboards
+from two_head_pipeline import TuneMode, TwoHeadPipeline
+from multi_label_model import MultiLabelModel
+from logger import setup_logger
 from xgboost import XGBClassifier, XGBRegressor
 
 
@@ -50,8 +51,10 @@ def build_pipeline_factory(config, args):
 
 
 def main():
+    setup_logger()
     args = parse_args()
     config = load_config(args.config_path)
+
 
     splits = load_preprocess_split_data(
         config.data_path,
@@ -63,17 +66,15 @@ def main():
     )
 
     model = MultiLabelModel(
+        trainConfig=config,
         pipeline_factory=build_pipeline_factory(config, args),
-        class_target_cols=config.class_target_cols,
-        reg_target_cols=config.reg_target_cols,
-        label_names=config.label_names,
         verbose=True
     )
 
     model.fit(
         splits=splits,
-        class_tune_mode=ParamTuningMode.NONE,
-        reg_tune_mode=ParamTuningMode.NONE
+        class_tune_mode=TuneMode.NONE,
+        reg_tune_mode=TuneMode.NONE
     )
 
     model.evaluate(
@@ -85,15 +86,15 @@ def main():
     model.print_metrics()
 
     if args.save:
-        config.output_dir.mkdir(parents=True, exist_ok=True)
+        config.output_path.mkdir(parents=True, exist_ok=True)
 
         metrics_df = model.metrics_to_dataframe()
-        metrics_df.to_csv(f"{config.output_dir}/metrics_summary.csv", index=False)
+        metrics_df.to_csv(f"{config.output_path}/metrics_summary.csv", index=False)
     
         save_multilabel_dashboards(
             multilabel_model=model,
             splits=splits,
-            output_dir=config.output_dir
+            output_dir=config.output_path
         )
 
 

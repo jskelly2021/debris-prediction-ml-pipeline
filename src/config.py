@@ -5,7 +5,7 @@ from pathlib import Path
 from dataclasses import dataclass, field
 
 @dataclass
-class ModelConfig:
+class TrainConfig:
     data_path: Path
     output_path: Path
     class_target_cols: list[str]
@@ -19,7 +19,7 @@ class ModelConfig:
     reg_default_params: dict = field(default_factory=dict)
 
 
-def load_config(config_path: str) -> ModelConfig:
+def load_config(config_path: str) -> TrainConfig:
     config_path = Path(config_path)
 
     with config_path.open("r") as file:
@@ -28,4 +28,4 @@ def load_config(config_path: str) -> ModelConfig:
     config_dict["data_path"] = Path(config_dict["data_path"])
     config_dict["output_path"] = Path(config_dict["output_path"])
 
-    return ModelConfig(**config_dict)
+    return TrainConfig(**config_dict)
