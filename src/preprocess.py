@@ -9,18 +9,11 @@ from split import make_train_val_test_splits
 log = Log()
 
 
-def preprocess_features(df, drop_cols, categorical_candidates=None):
+def preprocess_features(df, drop_cols):
     df = df.copy()
 
     X = df.drop(columns=drop_cols, errors="ignore")
     X = X.replace([np.inf, -np.inf], np.nan)
-
-    if categorical_candidates is None:
-        categorical_candidates = []
-
-    for col in categorical_candidates:
-        if col in X.columns:
-            X[col] = X[col].astype(str)
 
     categorical_cols = X.select_dtypes(include=["object", "category"]).columns.tolist()
     X_encoded = pd.get_dummies(
@@ -38,7 +31,7 @@ def preprocess_features(df, drop_cols, categorical_candidates=None):
     return X_encoded
 
 
-def preprocess_data(df, class_target_cols, reg_target_cols, drop_cols, categorical_candidates):
+def preprocess_data(df, class_target_cols, reg_target_cols, drop_cols):
     log.info("Preprocessing data...")
     df = df.copy()
 
@@ -47,7 +40,7 @@ def preprocess_data(df, class_target_cols, reg_target_cols, drop_cols, categoric
     if missing_reg:
         raise ValueError(f"Missing targets: class={missing_class}, reg={missing_reg}")
 
-    X_encoded = preprocess_features(df, drop_cols, categorical_candidates)
+    X_encoded = preprocess_features(df, drop_cols)
 
     y_class = df[class_target_cols].copy()
     y_reg = df[reg_target_cols].copy()
@@ -78,10 +71,8 @@ def load_preprocess_split_data(
         reg_target_cols,
         drop_cols,
         add_labels=False,
-        categorical_candidates=None,
         holdout_size=0.2,
         random_state=12,
-        verbose=False
     ):
 
     df = load_data(data_path)
@@ -94,7 +85,6 @@ def load_preprocess_split_data(
         class_target_cols,
         reg_target_cols,
         drop_cols,
-        categorical_candidates
     )
 
     return make_train_val_test_splits(

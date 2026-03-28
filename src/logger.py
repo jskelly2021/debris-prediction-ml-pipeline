@@ -28,7 +28,7 @@ class Log:
         self.log.info(f"{line}{RESET}\n")
 
     def h2(self, text: str) -> None:
-        line = "-" * 40
+        line = "-" * 60
         self.log.info(f"{CYAN}{line}")
         self.log.info(text)
         self.log.info(f"{line}{RESET}")

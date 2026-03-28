@@ -50,6 +50,7 @@ class TwoHeadPipeline:
             n_jobs=-1,
         )
 
+
     def __build_regressor(self):
         return XGBRegressor(
             objective="reg:squarederror",

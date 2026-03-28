@@ -31,12 +31,10 @@ def main():
         reg_target_cols=config.reg_target_cols,
         drop_cols=config.drop_cols,
         add_labels=True,
-        verbose=False
     )
 
     model = MultiLabelModel(
         trainConfig=config,
-        verbose=True
     )
 
     model.fit(

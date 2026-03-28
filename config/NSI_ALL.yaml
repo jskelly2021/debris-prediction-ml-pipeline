@@ -1,5 +1,5 @@
 data_path: data/NSI_DEBRIS_ALL_PL.csv
-output_path: output/NSI_DEBRIS_ALL_PL
+output_path: outputs/NSI_DEBRIS_ALL_PL
 
 class_target_cols:
   - has_veg_debris
