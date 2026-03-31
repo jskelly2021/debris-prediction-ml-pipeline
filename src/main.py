@@ -13,10 +13,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Train multi-label two-head XGBoost model")
     parser.add_argument("config_path", type=str, help="Path to YAML config file")
     parser.add_argument("--save", default=False, action="store_true")
-    parser.add_argument("--smote", default=False, action="store_true")
-    parser.add_argument("--scale_pos_weight", default=False, action="store_true")
-    parser.add_argument("--log_regression_target", default=False, action="store_true")
-    parser.add_argument("--positive_only_regression", default=False, action="store_true")
     return parser.parse_args()
 
 
@@ -26,10 +22,7 @@ def main():
     config = load_config(args.config_path)
 
     splits = load_preprocess_split_data(
-        config.data_path,
-        class_target_cols=config.class_target_cols,
-        reg_target_cols=config.reg_target_cols,
-        drop_cols=config.drop_cols,
+        config=config,
         add_labels=True,
     )
 

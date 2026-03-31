@@ -9,11 +9,24 @@ from split import make_train_val_test_splits
 log = Log()
 
 
-def preprocess_features(df, drop_cols):
+def apply_log_to_features(X, log_feature_cols):
+    X = X.copy()
+
+    for col in log_feature_cols:
+        if col in X.columns:
+            X[col] = np.log1p(X[col])
+    
+    return X
+
+
+def preprocess_features(df, drop_cols, log_regression_features, log_feature_cols):
     df = df.copy()
 
     X = df.drop(columns=drop_cols, errors="ignore")
     X = X.replace([np.inf, -np.inf], np.nan)
+
+    if log_regression_features:
+        X = apply_log_to_features(X, log_feature_cols)
 
     categorical_cols = X.select_dtypes(include=["object", "category"]).columns.tolist()
     X_encoded = pd.get_dummies(
@@ -31,7 +44,7 @@ def preprocess_features(df, drop_cols):
     return X_encoded
 
 
-def preprocess_data(df, class_target_cols, reg_target_cols, drop_cols):
+def preprocess_data(df, class_target_cols, reg_target_cols, drop_cols, log_regression_features, log_feature_cols):
     log.info("Preprocessing data...")
     df = df.copy()
 
@@ -40,7 +53,7 @@ def preprocess_data(df, class_target_cols, reg_target_cols, drop_cols):
     if missing_reg:
         raise ValueError(f"Missing targets: class={missing_class}, reg={missing_reg}")
 
-    X_encoded = preprocess_features(df, drop_cols)
+    X_encoded = preprocess_features(df, drop_cols, log_regression_features, log_feature_cols)
 
     y_class = df[class_target_cols].copy()
     y_reg = df[reg_target_cols].copy()
@@ -66,32 +79,31 @@ def create_labels(df, class_target_cols, reg_target_cols):
 
 
 def load_preprocess_split_data(
-        data_path,
-        class_target_cols,
-        reg_target_cols,
-        drop_cols,
+        config,
         add_labels=False,
         holdout_size=0.2,
         random_state=12,
     ):
 
-    df = load_data(data_path)
+    df = load_data(config.data_path)
 
     if add_labels:
-        df = create_labels(df, class_target_cols, reg_target_cols)
+        df = create_labels(df, config.class_target_cols, config.reg_target_cols)
 
     X, y_class, y_reg = preprocess_data(
         df,
-        class_target_cols,
-        reg_target_cols,
-        drop_cols,
+        class_target_cols=config.class_target_cols,
+        reg_target_cols=config.reg_target_cols,
+        drop_cols=config.drop_cols,
+        log_regression_features=config.log_regression_features,
+        log_feature_cols=config.log_feature_cols
     )
 
     return make_train_val_test_splits(
         X,
         y_class,
         y_reg,
-        labels=class_target_cols,
+        labels=config.class_target_cols,
         holdout_size=holdout_size,
         random_state=random_state
     )

@@ -37,7 +37,7 @@ def tune_threshold(y_true, y_prob):
     return best_threshold, best_f1
 
 
-def apply_scale_pos_weight(estimator, y_train_cls):
+def scale_pos_weight(estimator, y_train_cls):
     neg_count = (y_train_cls == 0).sum()
     pos_count = (y_train_cls == 1).sum()
 
@@ -69,7 +69,7 @@ def train_classifier(
         estimator.set_params(**default_params)
 
     if apply_scale_pos_weight:
-        apply_scale_pos_weight(estimator, y_train_cls)
+        scale_pos_weight(estimator, y_train_cls)
 
     if apply_smote:
         X_train_cls, y_train_cls = apply_smote_single_label(

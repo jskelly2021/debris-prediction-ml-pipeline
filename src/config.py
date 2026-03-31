@@ -7,13 +7,16 @@ from dataclasses import dataclass, field
 @dataclass
 class TrainConfig:
     data_path: Path
-    output_path: Path
-    class_target_cols: list[str]
-    reg_target_cols: list[str]
-    drop_cols: list[str]
-    label_names: list[str]
+    output_path: Path = Path("outputs")
+    class_target_cols: list[str] = field(default_factory=list)
+    reg_target_cols: list[str] = field(default_factory=list)
+    drop_cols: list[str] = field(default_factory=list)
+    log_feature_cols: list[str] = field(default_factory=list)
+    label_names: list[str] = field(default_factory=list)
+
     smote: bool = False
     scale_pos_weight: bool = False
+    log_regression_features: bool = False
     log_regression_target: bool = False
     positive_only_regression: bool = False
 

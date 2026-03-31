@@ -34,15 +34,20 @@ drop_cols:
   - VolBoth_sum
   - Bin_volBoth
 
+log_feature_cols:
+  - sqft
+  - val_struct
+  - val_cont
 
 label_names:
   - VG
   - CD
   - COMBINED
 
-smote: true
-scale_pos_weight: false
-log_regression_target: true
+smote: false
+scale_pos_weight: true
+log_regression_features: false
+log_regression_target: false
 positive_only_regression: true
 
 class_params_dist:

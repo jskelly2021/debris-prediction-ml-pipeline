@@ -35,6 +35,13 @@ def apply_positive_only_mask(splits, positive_only, class_target_col, reg_target
     return X_train_reg, y_train_reg, X_val_reg, y_val_reg
 
 
+def apply_log_transform(y_train_reg, y_val_reg):
+    y_train_reg = np.log1p(y_train_reg)
+    y_val_reg = np.log1p(y_val_reg)
+
+    return y_train_reg, y_val_reg
+
+
 def train_regressor(
     estimator,
     splits,
@@ -57,8 +64,7 @@ def train_regressor(
     )
 
     if log_target:
-        y_train_reg = np.log1p(y_train_reg)
-        y_val_reg = np.log1p(y_val_reg)
+        y_train_reg, y_val_reg = apply_log_transform(y_train_reg, y_val_reg)
 
     if len(X_train_reg) == 0:
         log.warn(f"Skipping regressor for {reg_target_col}: no positive training rows.")

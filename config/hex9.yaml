@@ -25,9 +25,9 @@ label_names:
   - VG
   - CD
 
-smote: true
+smote: false
 scale_pos_weight: false
-log_regression_target: true
+log_regression_target: false
 positive_only_regression: true
 
 class_params_dist:
