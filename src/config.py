@@ -11,14 +11,15 @@ class TrainConfig:
     class_target_cols: list[str] = field(default_factory=list)
     reg_target_cols: list[str] = field(default_factory=list)
     drop_cols: list[str] = field(default_factory=list)
-    log_feature_cols: list[str] = field(default_factory=list)
+    categorical_cols: list[str] = field(default_factory=list)
+    feature_cols_to_log: list[str] = field(default_factory=list)
     label_names: list[str] = field(default_factory=list)
 
+    outlier_threshold: float = None
     smote: bool = False
     scale_pos_weight: bool = False
-    log_regression_features: bool = False
-    log_regression_target: bool = False
-    positive_only_regression: bool = False
+    log_features: bool = False
+    log_target_reg: bool = False
 
     class_params_dist: dict = field(default_factory=dict)
     reg_params_dist: dict = field(default_factory=dict)

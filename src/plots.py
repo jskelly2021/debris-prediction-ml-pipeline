@@ -1,198 +1,262 @@
-import matplotlib.pyplot as plt
-import numpy as np
-
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
 from sklearn.metrics import (
+    confusion_matrix,
     ConfusionMatrixDisplay,
+    roc_curve,
     auc,
     precision_recall_curve,
+    average_precision_score,
 )
+from logger import Log
 
 
-def ensure_output_dir(output_dir):
-    if output_dir is None:
-        return None
-
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    return output_dir
+log = Log()
 
 
-def safe_label(label):
-    return str(label).lower().replace(" ", "_").replace("/", "_")
+def _ensure_dir(path: Path):
+    path.mkdir(parents=True, exist_ok=True)
 
 
-def save_figure(fig, output_path):
-    fig.savefig(output_path, dpi=300, bbox_inches="tight")
-    plt.close(fig)
+def _safe_feature_importances(model, feature_names):
+    if model is None or not hasattr(model, "feature_importances_"):
+        return pd.DataFrame(columns=["feature", "importance"])
+
+    df = pd.DataFrame({
+        "feature": list(feature_names),
+        "importance": model.feature_importances_
+    }).sort_values("importance", ascending=False)
+
+    return df.reset_index(drop=True)
 
 
-def plot_confusion_matrix_ax(y_true, y_pred, ax, title):
-    ConfusionMatrixDisplay.from_predictions(
-        y_true,
-        y_pred,
-        normalize="true",
-        ax=ax,
-        colorbar=False,
-    )
-    ax.set_title(title)
+def print_top_features(model, feature_names, label, top_n=10):
+    fi = _safe_feature_importances(model, feature_names)
 
-
-def plot_precision_recall_ax(y_true, y_prob, ax, title):
-    precision, recall, _ = precision_recall_curve(y_true, y_prob)
-    pr_auc = auc(recall, precision)
-
-    ax.plot(recall, precision)
-    ax.set_xlabel("Recall")
-    ax.set_ylabel("Precision")
-    ax.set_title(f"{title} (AUC={pr_auc:.3f})")
-    ax.grid(True, linestyle="--", alpha=0.4)
-
-
-def plot_expected_vs_actual_ax(y_true, y_pred, ax, title):
-    y_true = np.asarray(y_true)
-    y_pred = np.asarray(y_pred)
-
-    ax.scatter(y_true, y_pred, alpha=0.35)
-
-    if len(y_true) == 0 or len(y_pred) == 0:
-        ax.set_title(title)
-        ax.set_xlabel("Actual Volume")
-        ax.set_ylabel("Predicted Volume")
-        ax.text(0.5, 0.5, "No samples", ha="center", va="center")
-        ax.grid(True, linestyle="--", alpha=0.4)
+    if fi.empty:
+        log.warn(f"No feature importances available for {label}.")
         return
 
-    lo = min(y_true.min(), y_pred.min())
-    hi = max(y_true.max(), y_pred.max())
-
-    if lo == hi:
-        hi = lo + 1.0
-
-    ax.plot([lo, hi], [lo, hi], "r--", linewidth=2)
-    ax.set_xlabel("Actual Volume")
-    ax.set_ylabel("Predicted Volume")
-    ax.set_title(title)
-    ax.grid(True, linestyle="--", alpha=0.4)
-    ax.set_xlim(lo, hi)
-    ax.set_ylim(lo, hi)
-
-
-def plot_feature_importance_ax(model, feature_names, ax, title, top_n=15):
-    importances = np.asarray(model.feature_importances_)
-    indices = np.argsort(importances)[::-1][: min(top_n, len(feature_names))]
-
-    ax.bar(range(len(indices)), importances[indices])
-    ax.set_xticks(range(len(indices)))
-    ax.set_xticklabels([feature_names[i] for i in indices], rotation=90)
-    ax.set_title(title)
-
-
-def print_top_features(model, feature_names, label, top_n=5):
-    importances = np.asarray(model.feature_importances_)
-    indices = np.argsort(importances)[::-1][: min(top_n, len(feature_names))]
-
-    print(f"Top {len(indices)} features for {label}:")
-    for i in indices:
-        print(f"  {feature_names[i]}: {importances[i]:.4f}")
+    log.h2(f"Top {top_n} features for {label}")
+    print(fi.head(top_n).to_string(index=False))
     print()
 
 
-def save_label_dashboard(
-    pred_df,
-    splits,
-    pipeline,
-    class_target_col,
-    reg_target_col,
-    label_name,
-    output_dir,
-):
-    output_dir = ensure_output_dir(output_dir)
-    if output_dir is None:
+def save_feature_importance_plot(model, feature_names, title, out_path, top_n=15):
+    fi = _safe_feature_importances(model, feature_names)
+
+    if fi.empty:
+        log.warn(f"Skipping feature importance plot for {title}: no importances available.")
         return
 
-    y_class_test = np.asarray(splits.y_class_test[class_target_col])
-    y_reg_test = np.asarray(splits.y_reg_test[reg_target_col])
+    fi = fi.head(top_n)
+    fi = fi.iloc[::-1]  # reverse so largest appears at top in barh
 
-    y_prob = np.asarray(pred_df[f"{label_name}_class_prob"])
-    y_class_pred = np.asarray(pred_df[f"{label_name}_class_pred"])
-    y_reg_pred = np.asarray(pred_df[f"{label_name}_reg_pred"])
-    y_expected_pred = np.asarray(pred_df[f"{label_name}_expected_volume_pred"])
+    plt.figure(figsize=(10, 6))
+    plt.barh(fi["feature"], fi["importance"])
+    plt.xlabel("Importance")
+    plt.ylabel("Feature")
+    plt.title(title)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close()
 
-    positive_mask = (y_class_test == 1)
 
-    fig, axes = plt.subplots(2, 3, figsize=(18, 10))
-    axes = axes.flatten()
+def save_confusion_matrix_plot(y_true, y_pred, title, out_path):
+    cm = confusion_matrix(y_true, y_pred)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
 
-    plot_confusion_matrix_ax(
-        y_class_test,
-        y_class_pred,
-        axes[0],
-        f"{label_name.upper()} Confusion Matrix"
-    )
+    fig, ax = plt.subplots(figsize=(6, 6))
+    disp.plot(ax=ax, colorbar=False)
+    ax.set_title(title)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
 
-    plot_precision_recall_ax(
-        y_class_test,
-        y_prob,
-        axes[1],
-        f"{label_name.upper()} PR Curve"
-    )
 
-    plot_expected_vs_actual_ax(
-        y_reg_test,
-        y_expected_pred,
-        axes[2],
-        f"{label_name.upper()} Expected Volume"
-    )
+def save_roc_curve_plot(y_true, y_prob, title, out_path):
+    fpr, tpr, _ = roc_curve(y_true, y_prob)
+    roc_auc = auc(fpr, tpr)
 
-    if positive_mask.sum() > 0:
-        plot_expected_vs_actual_ax(
-            y_reg_test[positive_mask],
-            y_reg_pred[positive_mask],
-            axes[3],
-            f"{label_name.upper()} Positive-Only Volume",
+    plt.figure(figsize=(7, 5))
+    plt.plot(fpr, tpr, label=f"AUC = {roc_auc:.4f}")
+    plt.plot([0, 1], [0, 1], linestyle="--")
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title(title)
+    plt.legend(loc="lower right")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close()
+
+
+def save_precision_recall_curve_plot(y_true, y_prob, title, out_path):
+    precision, recall, _ = precision_recall_curve(y_true, y_prob)
+    ap = average_precision_score(y_true, y_prob)
+
+    plt.figure(figsize=(7, 5))
+    plt.plot(recall, precision, label=f"AP = {ap:.4f}")
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title(title)
+    plt.legend(loc="best")
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close()
+
+
+def save_actual_vs_predicted_plot(y_true, y_pred, title, out_path):
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+
+    max_val = max(float(np.max(y_true)), float(np.max(y_pred))) if len(y_true) else 1.0
+
+    plt.figure(figsize=(7, 6))
+    plt.scatter(y_true, y_pred, alpha=0.5)
+    plt.plot([0, max_val], [0, max_val], linestyle="--")
+    plt.xlabel("Actual")
+    plt.ylabel("Predicted")
+    plt.title(title)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close()
+
+
+def save_residuals_vs_predicted_plot(y_true, y_pred, title, out_path):
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    residuals = y_true - y_pred
+
+    plt.figure(figsize=(7, 6))
+    plt.scatter(y_pred, residuals, alpha=0.5)
+    plt.axhline(0, linestyle="--")
+    plt.xlabel("Predicted")
+    plt.ylabel("Residual (Actual - Predicted)")
+    plt.title(title)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close()
+
+
+def save_residual_histogram_plot(y_true, y_pred, title, out_path, bins=30):
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+    residuals = y_true - y_pred
+
+    plt.figure(figsize=(7, 5))
+    plt.hist(residuals, bins=bins)
+    plt.axvline(0, linestyle="--")
+    plt.xlabel("Residual (Actual - Predicted)")
+    plt.ylabel("Count")
+    plt.title(title)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close()
+
+
+def save_multilabel_dashboards(model, output_dir, top_n_features=15):
+    """
+    Saves all useful plots for each label/head using the model's current test splits.
+
+    Expected model interface:
+      - model.models[label_name]["pipeline"]
+      - model.splits[label_name]
+      - split has X_test_class, X_test_reg, y_test_class, y_test_reg
+      - pipeline.predict_df(X, prefix=label_name)
+      - pipeline.head1 / pipeline.head2
+    """
+    output_dir = Path(output_dir)
+    _ensure_dir(output_dir)
+
+    if not getattr(model, "is_fitted", False):
+        raise ValueError("Model must be fitted before saving plots.")
+
+    for label_name, info in model.models.items():
+        log.h1(f"Saving plots for {label_name}")
+
+        pipeline = info["pipeline"]
+        split = model.splits[label_name]
+
+        label_dir = output_dir / label_name
+        _ensure_dir(label_dir)
+
+        feature_names = split.X_train_class.columns
+
+        # -------- Classification plots --------
+        class_pred_df = pipeline.predict_df(split.X_test_class, prefix=label_name)
+
+        y_true_class = split.y_test_class
+        y_pred_class = class_pred_df[f"{label_name}_class_pred"]
+        y_prob_class = class_pred_df[f"{label_name}_class_prob"]
+
+        save_confusion_matrix_plot(
+            y_true=y_true_class,
+            y_pred=y_pred_class,
+            title=f"{label_name} Confusion Matrix",
+            out_path=label_dir / "confusion_matrix.png",
         )
-    else:
-        axes[3].axis("off")
-        axes[3].text(0.5, 0.5, "No positive test samples", ha="center", va="center")
 
-    plot_feature_importance_ax(
-        pipeline.head1,
-        splits.X_train.columns,
-        axes[4],
-        f"{label_name.upper()} Classifier Importance",
-        top_n=15,
-    )
-
-    if pipeline.head2 is not None:
-        plot_feature_importance_ax(
-            pipeline.head2,
-            splits.X_train.columns,
-            axes[5],
-            f"{label_name.upper()} Regressor Importance",
-            top_n=15,
+        save_roc_curve_plot(
+            y_true=y_true_class,
+            y_prob=y_prob_class,
+            title=f"{label_name} ROC Curve",
+            out_path=label_dir / "roc_curve.png",
         )
-    else:
-        axes[5].axis("off")
-        axes[5].text(0.5, 0.5, "No regressor trained", ha="center", va="center")
 
-    fig.suptitle(f"{label_name.upper()} Model Dashboard", fontsize=18)
-    fig.tight_layout(rect=[0, 0, 1, 0.97])
-
-    dashboard_path = output_dir / f"{safe_label(label_name)}_dashboard.png"
-    save_figure(fig, dashboard_path)
-
-
-def save_multilabel_dashboards(multilabel_model, splits, output_dir):
-    pred_df = multilabel_model.predict(splits.X_test)
-
-    for label_name, info in multilabel_model.models.items():
-        save_label_dashboard(
-            pred_df=pred_df,
-            splits=splits,
-            pipeline=info["pipeline"],
-            class_target_col=info["class_col"],
-            reg_target_col=info["reg_col"],
-            label_name=label_name,
-            output_dir=output_dir,
+        save_precision_recall_curve_plot(
+            y_true=y_true_class,
+            y_prob=y_prob_class,
+            title=f"{label_name} Precision-Recall Curve",
+            out_path=label_dir / "precision_recall_curve.png",
         )
+
+        save_feature_importance_plot(
+            model=pipeline.head1,
+            feature_names=feature_names,
+            title=f"{label_name} Classifier Feature Importance",
+            out_path=label_dir / "classifier_feature_importance.png",
+            top_n=top_n_features,
+        )
+
+        # -------- Regression plots --------
+        # Use regression split explicitly so this stays correct if class/reg features diverge later.
+        reg_pred_df = pipeline.predict_df(split.X_test_reg, prefix=label_name)
+
+        y_true_reg = split.y_test_reg
+        y_pred_reg = reg_pred_df[f"{label_name}_expected_volume_pred"]
+
+        save_actual_vs_predicted_plot(
+            y_true=y_true_reg,
+            y_pred=y_pred_reg,
+            title=f"{label_name} Actual vs Expected Volume Predicted",
+            out_path=label_dir / "actual_vs_predicted.png",
+        )
+
+        save_residuals_vs_predicted_plot(
+            y_true=y_true_reg,
+            y_pred=y_pred_reg,
+            title=f"{label_name} Residuals vs Predicted",
+            out_path=label_dir / "residuals_vs_predicted.png",
+        )
+
+        save_residual_histogram_plot(
+            y_true=y_true_reg,
+            y_pred=y_pred_reg,
+            title=f"{label_name} Residual Histogram",
+            out_path=label_dir / "residual_histogram.png",
+        )
+
+        if pipeline.head2 is not None:
+            save_feature_importance_plot(
+                model=pipeline.head2,
+                feature_names=feature_names,
+                title=f"{label_name} Regressor Feature Importance",
+                out_path=label_dir / "regressor_feature_importance.png",
+                top_n=top_n_features,
+            )
+
+    log.info(f"Saved plots to: {output_dir}")

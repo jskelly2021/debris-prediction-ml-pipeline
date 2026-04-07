@@ -3,13 +3,13 @@ import pandas as pd
 import numpy as np
 
 from logger import Log
-from split import make_train_val_test_splits
+from config import TrainConfig
 
 
 log = Log()
 
 
-def apply_log_to_features(X, log_feature_cols):
+def _apply_log_to_features(X, log_feature_cols):
     X = X.copy()
 
     for col in log_feature_cols:
@@ -19,91 +19,90 @@ def apply_log_to_features(X, log_feature_cols):
     return X
 
 
-def preprocess_features(df, drop_cols, log_regression_features, log_feature_cols):
+def _drop_columns(df, drop_cols):
     df = df.copy()
 
     X = df.drop(columns=drop_cols, errors="ignore")
     X = X.replace([np.inf, -np.inf], np.nan)
 
-    if log_regression_features:
-        X = apply_log_to_features(X, log_feature_cols)
+    return X
 
-    categorical_cols = X.select_dtypes(include=["object", "category"]).columns.tolist()
-    X_encoded = pd.get_dummies(
+
+def _one_hot_encode_features(X, categorical_cols):
+    X = X.copy()
+
+    categorical_cols = [col for col in categorical_cols if col in X.columns]
+
+    X = pd.get_dummies(
         X,
         columns=categorical_cols,
         drop_first=False,
         dummy_na=True
     )
 
-    nunique = X_encoded.nunique(dropna=False)
+    return X    
+
+
+def _remove_constant_columns(X):
+    X = X.copy()
+
+    nunique = X.nunique(dropna=False)
     constant_cols = nunique[nunique <= 1].index.tolist()
     if constant_cols:
-        X_encoded = X_encoded.drop(columns=constant_cols)
+        X = X.drop(columns=constant_cols)
+    
+    return X
 
-    return X_encoded
 
-
-def preprocess_data(df, class_target_cols, reg_target_cols, drop_cols, log_regression_features, log_feature_cols):
-    log.info("Preprocessing data...")
+def _preprocess_data(
+    df,
+    class_target_cols,
+    reg_target_cols,
+    drop_cols,
+    categorical_cols,
+    log_features,
+    feature_cols_to_log
+):
     df = df.copy()
 
     missing_class = [c for c in class_target_cols if c not in df.columns]
     missing_reg = [c for c in reg_target_cols if c not in df.columns]
-    if missing_reg:
+    if missing_reg or missing_class:
         raise ValueError(f"Missing targets: class={missing_class}, reg={missing_reg}")
 
-    X_encoded = preprocess_features(df, drop_cols, log_regression_features, log_feature_cols)
+    X = _drop_columns(df, drop_cols)
+    X = _apply_log_to_features(X, feature_cols_to_log) if log_features else X
+    X_encoded = _one_hot_encode_features(X, categorical_cols)
+    X_encoded = _remove_constant_columns(X_encoded)
 
     y_class = df[class_target_cols].copy()
     y_reg = df[reg_target_cols].copy()
 
-    log.info(f"Preprocessing complete\n")
     return X_encoded, y_class, y_reg
 
 
-def load_data(data_path):
+def _load_data(data_path):
     log.info(f"Loading data from {data_path}...")
     df = pd.read_csv(data_path)
     log.info(f"Data loaded successfully. Shape: {df.shape}\n")
     return df
 
 
-def create_labels(df, class_target_cols, reg_target_cols):
-    df = df.copy()
+def load_and_preprocess_data(config: TrainConfig):
+    df = _load_data(config.data_path)
 
-    for class_col, reg_col in zip(class_target_cols, reg_target_cols):
-        df[class_col] = (df[reg_col] > 0).astype(int)
+    log.info("Preprocessing data...")
 
-    return df
-
-
-def load_preprocess_split_data(
-        config,
-        add_labels=False,
-        holdout_size=0.2,
-        random_state=12,
-    ):
-
-    df = load_data(config.data_path)
-
-    if add_labels:
-        df = create_labels(df, config.class_target_cols, config.reg_target_cols)
-
-    X, y_class, y_reg = preprocess_data(
+    X, y_class, y_reg = _preprocess_data(
         df,
         class_target_cols=config.class_target_cols,
         reg_target_cols=config.reg_target_cols,
         drop_cols=config.drop_cols,
-        log_regression_features=config.log_regression_features,
-        log_feature_cols=config.log_feature_cols
+        categorical_cols=config.categorical_cols,
+        log_features=config.log_features,
+        feature_cols_to_log=config.feature_cols_to_log
     )
 
-    return make_train_val_test_splits(
-        X,
-        y_class,
-        y_reg,
-        labels=config.class_target_cols,
-        holdout_size=holdout_size,
-        random_state=random_state
-    )
+    log.info(f"Preprocessing complete\n")
+
+    return X, y_class, y_reg

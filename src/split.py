@@ -4,6 +4,7 @@ import pandas as pd
 from dataclasses import dataclass
 from sklearn.model_selection import train_test_split
 from logger import Log
+from resampling import apply_smote_single_label
 
 
 log = Log()
@@ -11,63 +12,35 @@ log = Log()
 
 @dataclass
 class Splits:
-    X_train: pd.DataFrame
-    X_val: pd.DataFrame
-    X_test: pd.DataFrame
-    y_class_train: pd.DataFrame
-    y_class_val: pd.DataFrame
-    y_class_test: pd.DataFrame
-    y_reg_train: pd.DataFrame
-    y_reg_val: pd.DataFrame
-    y_reg_test: pd.DataFrame
+    X_train_class: pd.DataFrame
+    X_val_class: pd.DataFrame
+    X_test_class: pd.DataFrame
+    y_train_class: pd.DataFrame
+    y_val_class: pd.DataFrame
+    y_test_class: pd.DataFrame
+
+    X_train_reg: pd.DataFrame
+    X_val_reg: pd.DataFrame
+    X_test_reg: pd.DataFrame
+    y_train_reg: pd.DataFrame
+    y_val_reg: pd.DataFrame
+    y_test_reg: pd.DataFrame
 
 
-def _print_binary_label_breakdown(y_df, split_name):
-    log.body(f"\n{split_name} label breakdown:")
-    for col in y_df.columns:
-        y = y_df[col]
-        total = len(y)
-        pos = int((y == 1).sum())
-        neg = int((y == 0).sum())
-        pos_rate = pos / total if total > 0 else 0.0
+def _remove_outliers(X, y, outlier_threshold):
+    if outlier_threshold is None:
+        return X, y
 
-        log.body(
-            f"  {col}: "
-            f"n={total}, pos={pos}, neg={neg}, pos_rate={pos_rate:.4f}"
-        )
+    log.info("Removing outliers")
+
+    mask = y < outlier_threshold
+
+    return X.loc[mask], y.loc[mask]
 
 
-def _print_multilabel_combo_breakdown(y_df, split_name):
-    combo = y_df.astype(str).agg("_".join, axis=1)
-    combo_counts = combo.value_counts().sort_index()
-
-    log.body(f"\n{split_name} multilabel combo breakdown:")
-    for combo_name, count in combo_counts.items():
-        pct = count / len(combo) if len(combo) > 0 else 0.0
-        log.body(f"  {combo_name}: {count} ({pct:.4%})")
-
-
-def print_split_breakdown(splits):
-    log.h1("TRAIN / VAL / TEST SPLIT BREAKDOWN")
-
-    log.body(f"X_train shape: {splits.X_train.shape}")
-    log.body(f"X_val   shape: {splits.X_val.shape}")
-    log.body(f"X_test  shape: {splits.X_test.shape}")
-
-    _print_binary_label_breakdown(splits.y_class_train, "TRAIN")
-    _print_binary_label_breakdown(splits.y_class_val, "VAL")
-    _print_binary_label_breakdown(splits.y_class_test, "TEST")
-
-    _print_multilabel_combo_breakdown(splits.y_class_train, "TRAIN")
-    _print_multilabel_combo_breakdown(splits.y_class_val, "VAL")
-    _print_multilabel_combo_breakdown(splits.y_class_test, "TEST")
-
-
-def make_train_val_test_splits(X, y_class, y_reg, labels, holdout_size=0.2, random_state=12) -> Splits:
-    log.info("Creating train/val/test splits...")
-
-    stratify_labels = y_class[labels[0]].astype(str)
-    for label in labels[1:]:
+def _get_train_val_test_splits(X, y_class, y_reg, class_target_cols, holdout_size=0.2, random_state=12) -> Splits:
+    stratify_labels = y_class[class_target_cols[0]].astype(str)
+    for label in class_target_cols[1:]:
         stratify_labels += "_" + y_class[label].astype(str)
 
     train_idx, temp_idx = train_test_split(
@@ -77,8 +50,8 @@ def make_train_val_test_splits(X, y_class, y_reg, labels, holdout_size=0.2, rand
         stratify=stratify_labels
     )
 
-    temp_stratify = y_class.loc[temp_idx, labels[0]].astype(str)
-    for label in labels[1:]:
+    temp_stratify = y_class.loc[temp_idx, class_target_cols[0]].astype(str)
+    for label in class_target_cols[1:]:
         temp_stratify += "_" + y_class.loc[temp_idx, label].astype(str)
 
     val_idx, test_idx = train_test_split(
@@ -89,18 +62,90 @@ def make_train_val_test_splits(X, y_class, y_reg, labels, holdout_size=0.2, rand
     )
 
     splits = Splits(
-        X_train=X.loc[train_idx],
-        X_val=X.loc[val_idx],
-        X_test=X.loc[test_idx],
-        y_class_train=y_class.loc[train_idx],
-        y_class_val=y_class.loc[val_idx],
-        y_class_test=y_class.loc[test_idx],
-        y_reg_train=y_reg.loc[train_idx],
-        y_reg_val=y_reg.loc[val_idx],
-        y_reg_test=y_reg.loc[test_idx],
+        X_train_class=X.loc[train_idx],
+        X_val_class=X.loc[val_idx],
+        X_test_class=X.loc[test_idx],
+        X_train_reg=X.loc[train_idx],
+        X_val_reg=X.loc[val_idx],
+        X_test_reg=X.loc[test_idx],
+        y_train_class=y_class.loc[train_idx],
+        y_val_class=y_class.loc[val_idx],
+        y_test_class=y_class.loc[test_idx],
+        y_train_reg=y_reg.loc[train_idx],
+        y_val_reg=y_reg.loc[val_idx],
+        y_test_reg=y_reg.loc[test_idx],
     )
 
-    log.info(f"Train/Val/Test splits complete: ")
-    print_split_breakdown(splits)
+    return splits
 
+
+def make_label_specific_splits(
+    X,
+    y_class,
+    y_reg,
+    class_target_cols,
+    reg_target_cols,
+    labels,
+    apply_smote,
+    outlier_threshold,
+    holdout_size=0.2,
+    random_state=12
+) -> dict[str, Splits]:
+    log.info("Creating train/val/test splits...")
+
+    base = _get_train_val_test_splits(
+        X,
+        y_class,
+        y_reg,
+        class_target_cols,
+        holdout_size,
+        random_state
+    )
+
+    splits = { } 
+
+    for i, label in enumerate(class_target_cols):
+
+        X_train_class = base.X_train_class.copy()
+        y_train_class = base.y_train_class[class_target_cols[i]].copy()
+
+        X_train_reg = base.X_train_reg.copy()
+        y_train_reg = base.y_train_reg[reg_target_cols[i]].copy()
+
+        X_val_reg = base.X_val_reg.copy()
+        y_val_reg = base.y_val_reg[reg_target_cols[i]].copy()
+
+        X_test_reg = base.X_test_reg.copy()
+        y_test_reg = base.y_test_reg[reg_target_cols[i]].copy()
+
+        X_train_reg, y_train_reg = _remove_outliers(X_train_reg, y_train_reg, outlier_threshold)
+        X_val_reg, y_val_reg = _remove_outliers(X_val_reg, y_val_reg, outlier_threshold)
+        X_test_reg, y_test_reg = _remove_outliers(X_test_reg, y_test_reg, outlier_threshold)
+
+        if apply_smote:
+            X_train_class, y_train_class = apply_smote_single_label(
+                X_train_class,
+                y_train_class,
+                label_name=label,
+                random_state=random_state
+            )
+
+        splits[labels[i]] = Splits(
+                X_train_class=X_train_class,
+                X_val_class=base.X_val_class,
+                X_test_class=base.X_test_class,
+                y_train_class=y_train_class,
+                y_val_class=base.y_val_class[class_target_cols[i]],
+                y_test_class=base.y_test_class[class_target_cols[i]],
+
+                X_train_reg=X_train_reg,
+                X_val_reg=X_val_reg,
+                X_test_reg=X_test_reg,
+                y_train_reg=y_train_reg,
+                y_val_reg=y_val_reg,
+                y_test_reg=y_test_reg
+            )
+
+    log.info(f"Train/Val/Test splits complete: ")
+    
     return splits

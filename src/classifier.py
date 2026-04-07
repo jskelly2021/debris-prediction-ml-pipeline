@@ -8,6 +8,7 @@ from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from resampling import apply_smote_single_label
 from tune_mode import TuneMode
 from logger import Log
+from split import Splits
 
 
 log = Log()
@@ -52,33 +53,23 @@ def scale_pos_weight(estimator, y_train_cls):
 
 def train_classifier(
     estimator,
-    splits,
+    splits: Splits,
     param_dist,
     default_params,
     class_target_col,
-    apply_smote,
     apply_scale_pos_weight,
     tune_mode
 ) -> ClassifierTrainingResult:
     log.info("Training Classifier...")
 
-    X_train_cls = splits.X_train
-    y_train_cls = splits.y_class_train[class_target_col]
+    X_train_cls = splits.X_train_class
+    y_train_cls = splits.y_train_class
 
     if tune_mode == TuneMode.NONE:
         estimator.set_params(**default_params)
 
     if apply_scale_pos_weight:
         scale_pos_weight(estimator, y_train_cls)
-
-    if apply_smote:
-        X_train_cls, y_train_cls = apply_smote_single_label(
-            X_train_cls,
-            y_train_cls,
-            label_name=class_target_col,
-            random_state=12,
-            k_neighbors=5
-        )
 
     start = time.perf_counter()
 
@@ -114,7 +105,7 @@ def train_classifier(
         estimator.fit(
             X_train_cls,
             y_train_cls,
-            eval_set=[(splits.X_val, splits.y_class_val[class_target_col])],
+            eval_set=[(splits.X_val_class, splits.y_val_class)],
             verbose=False
         )
 
@@ -123,8 +114,8 @@ def train_classifier(
     log.info("Classifier training complete.")
     log.info(f"Training time: {end - start:.2f} seconds")
 
-    y_val_prob = estimator.predict_proba(splits.X_val)[:, 1]
-    threshold, best_f1 = tune_threshold(splits.y_class_val[class_target_col], y_val_prob)
+    y_val_prob = estimator.predict_proba(splits.X_val_class)[:, 1]
+    threshold, best_f1 = tune_threshold(splits.y_val_class, y_val_prob)
 
     log.info(f"Chosen threshold: {threshold:.2f} (best F1 on validation: {best_f1:.4f})")
 

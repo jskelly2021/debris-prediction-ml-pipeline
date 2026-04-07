@@ -33,8 +33,7 @@ class TwoHeadPipeline:
         self.reg_default_params = pipelineConfig.reg_default_params or {}
         self.apply_smote = pipelineConfig.smote
         self.apply_scale_pos_weight = pipelineConfig.scale_pos_weight
-        self.log_regression_target = pipelineConfig.log_regression_target
-        self.positive_only_regression = pipelineConfig.positive_only_regression
+        self.log_regression_target = pipelineConfig.log_target_reg
         self.threshold = 0.5
         self.best_f1 = None
         self.head1 = self.__build_classifier()
@@ -73,25 +72,22 @@ class TwoHeadPipeline:
             param_dist=self.class_param_dist,
             default_params=self.class_default_params,
             class_target_col=class_target_col,
-            apply_smote=self.apply_smote,
             apply_scale_pos_weight=self.apply_scale_pos_weight,
             tune_mode=class_tune_mode
         )
 
-        regrssorResults = train_regressor(
+        regressorResults = train_regressor(
             estimator=self.head2,
             splits=splits,
             param_dist=self.reg_param_dist,
             default_params=self.reg_default_params,
-            class_target_col=class_target_col,
             reg_target_col=reg_target_col,
-            positive_only=self.positive_only_regression,
             log_target=self.log_regression_target,
             tune_mode=reg_tune_mode
         )
         
         self.head1 = classifierResults.estimator
-        self.head2 = regrssorResults.estimator
+        self.head2 = regressorResults.estimator
         self.is_fitted = True
 
 

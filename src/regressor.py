@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from tune_mode import TuneMode
 from logger import Log
+from split import Splits
 
 
 log = Log()
@@ -17,24 +18,6 @@ class RegressorTrainingResult:
     training_time: float
 
 
-def apply_positive_only_mask(splits, positive_only, class_target_col, reg_target_col):
-    if positive_only:
-        train_mask = splits.y_class_train[class_target_col] == 1
-        val_mask = splits.y_class_val[class_target_col] == 1
-
-        X_train_reg = splits.X_train.loc[train_mask]
-        y_train_reg = splits.y_reg_train[reg_target_col].loc[train_mask]
-        X_val_reg = splits.X_val.loc[val_mask]
-        y_val_reg = splits.y_reg_val[reg_target_col].loc[val_mask]
-    else:
-        X_train_reg = splits.X_train
-        y_train_reg = splits.y_reg_train[reg_target_col]
-        X_val_reg = splits.X_val
-        y_val_reg = splits.y_reg_val[reg_target_col]
-
-    return X_train_reg, y_train_reg, X_val_reg, y_val_reg
-
-
 def apply_log_transform(y_train_reg, y_val_reg):
     y_train_reg = np.log1p(y_train_reg)
     y_val_reg = np.log1p(y_val_reg)
@@ -44,24 +27,20 @@ def apply_log_transform(y_train_reg, y_val_reg):
 
 def train_regressor(
     estimator,
-    splits,
+    splits: Splits,
     param_dist,
     default_params,
-    class_target_col,
     reg_target_col,
-    positive_only,
     log_target,
     tune_mode
 ) -> RegressorTrainingResult:
 
     log.info("Training Regressor...")
 
-    X_train_reg, y_train_reg, X_val_reg, y_val_reg = apply_positive_only_mask(
-        splits=splits,
-        positive_only=positive_only,
-        class_target_col=class_target_col,
-        reg_target_col=reg_target_col
-    )
+    X_train_reg = splits.X_train_reg
+    X_val_reg = splits.X_val_reg
+    y_train_reg = splits.y_train_reg
+    y_val_reg = splits.y_val_reg
 
     if log_target:
         y_train_reg, y_val_reg = apply_log_transform(y_train_reg, y_val_reg)
