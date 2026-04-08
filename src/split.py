@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from sklearn.model_selection import train_test_split
 from config import LabelSpec
 from logger import Log
-from resampling import apply_smote_single_label
 
 
 log = Log()
@@ -82,7 +81,6 @@ def make_label_specific_splits(
     y_class,
     y_reg,
     label_specs: list[LabelSpec],
-    apply_smote,
     outlier_threshold,
     positive_only_regression,
     holdout_size=0.2,
@@ -137,14 +135,6 @@ def make_label_specific_splits(
         X_train_reg, y_train_reg = _remove_outliers(X_train_reg, y_train_reg, outlier_threshold)
         X_val_reg, y_val_reg = _remove_outliers(X_val_reg, y_val_reg, outlier_threshold)
         X_test_reg, y_test_reg = _remove_outliers(X_test_reg, y_test_reg, outlier_threshold)
-
-        if apply_smote:
-            X_train_class, y_train_class = apply_smote_single_label(
-                X_train_class,
-                y_train_class,
-                label_name=class_col,
-                random_state=random_state
-            )
 
         splits[label_name] = Splits(
                 X_train_class=X_train_class,

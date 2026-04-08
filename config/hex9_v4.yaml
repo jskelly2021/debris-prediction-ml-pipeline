@@ -1,6 +1,11 @@
 data_path: data/hex9_v4.csv
 output_path: outputs/hex9_v4
 
+label_names:
+  # - CD
+  # - VG
+  - BT
+
 class_target_cols:
   # - Bin_CD
   # - Bin_VG
@@ -43,15 +48,18 @@ categorical_cols:
   - landuse
   - evac_degree
 
+categorical_encoding:
+  default: onehot
+  overrides:
+    landuse: target
+    evac_degree: target
+
+target_encoding_smoothing: 10.0
+
 feature_cols_to_log:
   - sqft
   - val_struct
   - val_cont
-
-label_names:
-  # - CD
-  # - VG
-  - BT
 
 outlier_threshold: 
 smote: false

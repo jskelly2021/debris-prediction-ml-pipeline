@@ -184,7 +184,8 @@ def save_multilabel_dashboards(model, splits, output_dir, top_n_features=15):
         label_dir = output_dir / label_name
         _ensure_dir(label_dir)
 
-        feature_names = split.X_train_class.columns
+        class_feature_names = pipeline.class_feature_names_
+        reg_feature_names = pipeline.reg_feature_names_ or pipeline.class_feature_names_
 
         # -------- Classification plots --------
         class_pred_df = pipeline.predict_df(split.X_test_class, prefix=label_name)
@@ -216,7 +217,7 @@ def save_multilabel_dashboards(model, splits, output_dir, top_n_features=15):
 
         save_feature_importance_plot(
             model=pipeline.head1,
-            feature_names=feature_names,
+            feature_names=class_feature_names,
             title=f"{label_name} Classifier Feature Importance",
             out_path=label_dir / "classifier_feature_importance.png",
             top_n=top_n_features,
@@ -258,7 +259,7 @@ def save_multilabel_dashboards(model, splits, output_dir, top_n_features=15):
         if pipeline.head2 is not None:
             save_feature_importance_plot(
                 model=pipeline.head2,
-                feature_names=feature_names,
+                feature_names=reg_feature_names,
                 title=f"{label_name} Regressor Feature Importance",
                 out_path=label_dir / "regressor_feature_importance.png",
                 top_n=top_n_features,

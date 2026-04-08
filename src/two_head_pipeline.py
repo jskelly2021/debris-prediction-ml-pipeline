@@ -4,8 +4,11 @@ import pandas as pd
 
 from xgboost import XGBClassifier, XGBRegressor
 from tune_mode import TuneMode
+from split import Splits
 from regressor import train_regressor
 from classifier import train_classifier
+from resampling import apply_smote_single_label
+from categorical_preprocessing import CategoricalPreprocessor
 from dataclasses import dataclass
 from logger import Log
 
@@ -33,10 +36,18 @@ class TwoHeadPipeline:
         self.apply_smote = pipelineConfig.smote
         self.apply_scale_pos_weight = pipelineConfig.scale_pos_weight
         self.log_regression_target = pipelineConfig.log_target_reg
+        self.positive_only_regression = pipelineConfig.positive_only_regression
+        self.categorical_cols = pipelineConfig.categorical_cols
+        self.categorical_encoding = pipelineConfig.categorical_encoding
+        self.target_encoding_smoothing = pipelineConfig.target_encoding_smoothing
         self.threshold = 0.5
         self.best_f1 = None
         self.head1 = self.__build_classifier()
         self.head2 = self.__build_regressor()
+        self.class_preprocessor = None
+        self.reg_preprocessor = None
+        self.class_feature_names_ = []
+        self.reg_feature_names_ = []
         self.is_fitted = False
 
 
@@ -51,7 +62,7 @@ class TwoHeadPipeline:
 
     def __build_regressor(self):
         return XGBRegressor(
-            objective="reg:gamma",
+            objective="reg:squarederror",
             tree_method="hist",
             n_jobs=-1,
         )
@@ -65,9 +76,10 @@ class TwoHeadPipeline:
         class_tune_mode=TuneMode.NONE,
         reg_tune_mode=TuneMode.NONE
     ):
+        class_splits = self._prepare_class_splits(splits, class_target_col)
         classifierResults = train_classifier(
             estimator=self.head1,
-            splits=splits,
+            splits=class_splits,
             param_dist=self.class_param_dist,
             default_params=self.class_default_params,
             class_target_col=class_target_col,
@@ -75,9 +87,10 @@ class TwoHeadPipeline:
             tune_mode=class_tune_mode
         )
 
+        reg_splits = self._prepare_reg_splits(splits, reg_target_col)
         regressorResults = train_regressor(
             estimator=self.head2,
-            splits=splits,
+            splits=reg_splits,
             param_dist=self.reg_param_dist,
             default_params=self.reg_default_params,
             reg_target_col=reg_target_col,
@@ -92,17 +105,90 @@ class TwoHeadPipeline:
         self.is_fitted = True
 
 
+    def _prepare_class_splits(self, splits: Splits, class_target_col: str) -> Splits:
+        self.class_preprocessor = CategoricalPreprocessor(
+            categorical_cols=self.categorical_cols,
+            categorical_encoding=self.categorical_encoding,
+            target_smoothing=self.target_encoding_smoothing,
+            head_name=f"{class_target_col} classifier",
+        )
+
+        X_train_class = self.class_preprocessor.fit_transform(splits.X_train_class, splits.y_train_class)
+        X_val_class = self.class_preprocessor.transform(splits.X_val_class)
+        X_test_class = self.class_preprocessor.transform(splits.X_test_class)
+        self.class_feature_names_ = X_train_class.columns.tolist()
+
+        y_train_class = splits.y_train_class
+        if self.apply_smote:
+            X_train_class, y_train_class = apply_smote_single_label(
+                X_train_class,
+                y_train_class,
+                label_name=class_target_col,
+            )
+
+        return Splits(
+            X_train_class=X_train_class,
+            X_val_class=X_val_class,
+            X_test_class=X_test_class,
+            y_train_class=y_train_class,
+            y_val_class=splits.y_val_class,
+            y_test_class=splits.y_test_class,
+            X_train_reg=splits.X_train_reg,
+            X_val_reg=splits.X_val_reg,
+            X_test_reg=splits.X_test_reg,
+            y_train_reg=splits.y_train_reg,
+            y_val_reg=splits.y_val_reg,
+            y_test_reg=splits.y_test_reg,
+        )
+
+
+    def _prepare_reg_splits(self, splits: Splits, reg_target_col: str) -> Splits:
+        if len(splits.X_train_reg) == 0:
+            self.reg_preprocessor = None
+            self.reg_feature_names_ = []
+            return splits
+
+        self.reg_preprocessor = CategoricalPreprocessor(
+            categorical_cols=self.categorical_cols,
+            categorical_encoding=self.categorical_encoding,
+            target_smoothing=self.target_encoding_smoothing,
+            head_name=f"{reg_target_col} regressor",
+        )
+
+        X_train_reg = self.reg_preprocessor.fit_transform(splits.X_train_reg, splits.y_train_reg)
+        X_val_reg = self.reg_preprocessor.transform(splits.X_val_reg)
+        X_test_reg = self.reg_preprocessor.transform(splits.X_test_reg)
+        self.reg_feature_names_ = X_train_reg.columns.tolist()
+
+        return Splits(
+            X_train_class=splits.X_train_class,
+            X_val_class=splits.X_val_class,
+            X_test_class=splits.X_test_class,
+            y_train_class=splits.y_train_class,
+            y_val_class=splits.y_val_class,
+            y_test_class=splits.y_test_class,
+            X_train_reg=X_train_reg,
+            X_val_reg=X_val_reg,
+            X_test_reg=X_test_reg,
+            y_train_reg=splits.y_train_reg,
+            y_val_reg=splits.y_val_reg,
+            y_test_reg=splits.y_test_reg,
+        )
+
+
     def predict(self, X):
         if not self.is_fitted:
             raise ValueError("Model must be trained before prediction.")
 
-        y_prob = self.head1.predict_proba(X)[:, 1]
+        X_class = self.class_preprocessor.transform(X) if self.class_preprocessor is not None else X
+        y_prob = self.head1.predict_proba(X_class)[:, 1]
         y_class = (y_prob >= self.threshold).astype(int)
 
         if self.head2 is None:
             y_reg = np.zeros(len(X))
         else:
-            y_reg = self.head2.predict(X)
+            X_reg = self.reg_preprocessor.transform(X) if self.reg_preprocessor is not None else X
+            y_reg = self.head2.predict(X_reg)
             if self.log_regression_target:
                 y_reg = np.expm1(y_reg)
 

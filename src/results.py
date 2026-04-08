@@ -115,14 +115,15 @@ def print_feature_importance(model, splits: dict[str, Splits], top_n=10):
         raise ValueError("Model must be fitted before printing feature importance.")
 
     for label_name, info in model.models.items():
-        feature_names = splits[label_name].X_train_class.columns
         pipeline = info["pipeline"]
+        class_feature_names = pipeline.class_feature_names_
+        reg_feature_names = pipeline.reg_feature_names_ or pipeline.class_feature_names_
 
         log.h1(f"FEATURE IMPORTANCE FOR {label_name}")
 
         print_top_features(
             model=pipeline.head1,
-            feature_names=feature_names,
+            feature_names=class_feature_names,
             label=f"{label_name} Classifier",
             top_n=top_n,
         )
@@ -130,7 +131,7 @@ def print_feature_importance(model, splits: dict[str, Splits], top_n=10):
         if pipeline.head2 is not None:
             print_top_features(
                 model=pipeline.head2,
-                feature_names=feature_names,
+                feature_names=reg_feature_names,
                 label=f"{label_name} Regressor",
                 top_n=top_n,
             )
@@ -146,10 +147,11 @@ def feature_importance_to_dataframe(model, splits: dict[str, Splits]):
 
     for label_name, info in model.models.items():
         pipeline = info["pipeline"]
-        feature_names = splits[label_name].X_train_class.columns
+        class_feature_names = pipeline.class_feature_names_
+        reg_feature_names = pipeline.reg_feature_names_ or pipeline.class_feature_names_
 
         clf_importances = pipeline.head1.feature_importances_
-        for feature, importance in zip(feature_names, clf_importances):
+        for feature, importance in zip(class_feature_names, clf_importances):
             rows.append({
                 "label": label_name,
                 "head_type": "classifier",
@@ -159,7 +161,7 @@ def feature_importance_to_dataframe(model, splits: dict[str, Splits]):
 
         if pipeline.head2 is not None:
             reg_importances = pipeline.head2.feature_importances_
-            for feature, importance in zip(feature_names, reg_importances):
+            for feature, importance in zip(reg_feature_names, reg_importances):
                 rows.append({
                     "label": label_name,
                     "head_type": "regressor",

@@ -19,6 +19,7 @@ class TrainConfig:
     reg_target_cols: list[str] = field(default_factory=list)
     drop_cols: list[str] = field(default_factory=list)
     categorical_cols: list[str] = field(default_factory=list)
+    categorical_encoding: dict = field(default_factory=dict)
     feature_cols_to_log: list[str] = field(default_factory=list)
     label_names: list[str] = field(default_factory=list)
 
@@ -28,6 +29,7 @@ class TrainConfig:
     log_features: bool = False
     log_target_reg: bool = False
     positive_only_regression: bool = False
+    target_encoding_smoothing: float = 10.0
 
     class_params_dist: dict = field(default_factory=dict)
     reg_params_dist: dict = field(default_factory=dict)

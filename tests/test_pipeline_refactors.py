@@ -162,7 +162,6 @@ class ConditionalRegressionTests(unittest.TestCase):
             y_class=y_class,
             y_reg=y_reg,
             label_specs=label_specs,
-            apply_smote=False,
             outlier_threshold=None,
             positive_only_regression=True,
             holdout_size=0.5,
@@ -270,6 +269,46 @@ class SplitConsistencyTests(unittest.TestCase):
             list(full_splits["CD"].X_test_class.index),
             list(single_splits["CD"].X_test_class.index),
         )
+
+
+class CategoricalEncodingTests(unittest.TestCase):
+    def test_target_encoder_uses_train_statistics_only(self):
+        from categorical_preprocessing import CategoricalPreprocessor
+
+        X_train = pd.DataFrame({"cat": ["a", "a", "b"], "num": [1, 2, 3]})
+        y_train = pd.Series([0.0, 1.0, 1.0])
+        X_test = pd.DataFrame({"cat": ["a", "c"], "num": [4, 5]})
+
+        encoder = CategoricalPreprocessor(
+            categorical_cols=["cat"],
+            categorical_encoding={"default": "target"},
+            target_smoothing=1.0,
+            head_name="test head",
+        )
+
+        train_out = encoder.fit_transform(X_train, y_train)
+        test_out = encoder.transform(X_test)
+
+        self.assertIn("cat_te", train_out.columns)
+        self.assertAlmostEqual(float(test_out.loc[1, "cat_te"]), float(y_train.mean()), places=6)
+
+    def test_onehot_encoding_produces_consistent_columns(self):
+        from categorical_preprocessing import CategoricalPreprocessor
+
+        X_train = pd.DataFrame({"cat": ["a", "b"], "num": [1, 2]})
+        y_train = pd.Series([0, 1])
+        X_test = pd.DataFrame({"cat": ["b", "c"], "num": [3, 4]})
+
+        encoder = CategoricalPreprocessor(
+            categorical_cols=["cat"],
+            categorical_encoding={"default": "onehot"},
+            head_name="test head",
+        )
+
+        train_out = encoder.fit_transform(X_train, y_train)
+        test_out = encoder.transform(X_test)
+
+        self.assertListEqual(train_out.columns.tolist(), test_out.columns.tolist())
 
 
 if __name__ == "__main__":

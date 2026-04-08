@@ -28,21 +28,6 @@ def _drop_columns(df, drop_cols):
     return X
 
 
-def _one_hot_encode_features(X, categorical_cols):
-    X = X.copy()
-
-    categorical_cols = [col for col in categorical_cols if col in X.columns]
-
-    X = pd.get_dummies(
-        X,
-        columns=categorical_cols,
-        drop_first=False,
-        dummy_na=True
-    )
-
-    return X    
-
-
 def _remove_constant_columns(X):
     X = X.copy()
 
@@ -72,13 +57,12 @@ def _preprocess_data(
 
     X = _drop_columns(df, drop_cols)
     X = _apply_log_to_features(X, feature_cols_to_log) if log_features else X
-    X_encoded = _one_hot_encode_features(X, categorical_cols)
-    X_encoded = _remove_constant_columns(X_encoded)
+    X_processed = _remove_constant_columns(X)
 
     y_class = df[class_target_cols].copy()
     y_reg = df[reg_target_cols].copy()
 
-    return X_encoded, y_class, y_reg
+    return X_processed, y_class, y_reg
 
 
 def _load_data(data_path):

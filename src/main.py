@@ -40,7 +40,6 @@ def main():
         y_class=y_class,
         y_reg=y_reg,
         label_specs=config.label_specs,
-        apply_smote=config.smote,
         outlier_threshold=config.outlier_threshold,
         positive_only_regression=config.positive_only_regression,
     )
