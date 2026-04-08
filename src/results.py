@@ -1,0 +1,158 @@
+import pandas as pd
+
+from config import TrainConfig
+from logger import Log
+from plots import print_top_features
+from split import Splits
+
+
+log = Log()
+
+
+def print_metrics(metrics):
+    if metrics is None:
+        raise ValueError("No metrics available. Run evaluate() first.")
+
+    for label_name, label_metrics in metrics.items():
+        log.h1(f"Metrics for {label_name}")
+        label_metrics["classification"].print(label_name)
+        label_metrics["regression"].print(f"{label_name} Expected Volume")
+
+
+def metrics_to_dataframe(metrics, train_config: TrainConfig, run_id=None, n_features=None):
+    if metrics is None:
+        raise ValueError("No metrics available. Run evaluate() first.")
+
+    rows = []
+
+    for label_name, label_metrics in metrics.items():
+        c = label_metrics["classification"]
+        r = label_metrics["regression"]
+
+        label_n_features = None if n_features is None else n_features.get(label_name)
+
+        rows.append({
+            "run_id": run_id,
+            "label": label_name,
+            "class_target": label_metrics["class_col"],
+            "reg_target": label_metrics["reg_col"],
+            "n_features": label_n_features,
+
+            "smote": train_config.smote,
+            "scale_pos_weight": train_config.scale_pos_weight,
+            "log_features": train_config.log_features,
+            "log_target_reg": train_config.log_target_reg,
+            "outlier_threshold": train_config.outlier_threshold,
+
+            "positive_rate": c.positive_rate,
+            "class_n_samples": c.n_samples,
+            "n_positive": c.n_positive,
+            "accuracy": c.accuracy,
+            "precision": c.precision,
+            "recall": c.recall,
+            "f1": c.f1,
+            "roc_auc": c.roc_auc,
+
+            "reg_n_samples": r.n_samples,
+            "rmse": r.rmse,
+            "mae": r.mae,
+            "r2": r.r2,
+        })
+
+    return pd.DataFrame(rows)
+
+
+def print_feature_importance(model, splits: dict[str, Splits], top_n=10):
+    if not getattr(model, "is_fitted", False):
+        raise ValueError("Model must be fitted before printing feature importance.")
+
+    for label_name, info in model.models.items():
+        feature_names = splits[label_name].X_train_class.columns
+        pipeline = info["pipeline"]
+
+        log.h1(f"FEATURE IMPORTANCE FOR {label_name}")
+
+        print_top_features(
+            model=pipeline.head1,
+            feature_names=feature_names,
+            label=f"{label_name} Classifier",
+            top_n=top_n,
+        )
+
+        if pipeline.head2 is not None:
+            print_top_features(
+                model=pipeline.head2,
+                feature_names=feature_names,
+                label=f"{label_name} Regressor",
+                top_n=top_n,
+            )
+        else:
+            log.warn(f"No regressor trained for {label_name}.")
+
+
+def feature_importance_to_dataframe(model, splits: dict[str, Splits]):
+    if not getattr(model, "is_fitted", False):
+        raise ValueError("Model must be fitted before exporting feature importance.")
+
+    rows = []
+
+    for label_name, info in model.models.items():
+        pipeline = info["pipeline"]
+        feature_names = splits[label_name].X_train_class.columns
+
+        clf_importances = pipeline.head1.feature_importances_
+        for feature, importance in zip(feature_names, clf_importances):
+            rows.append({
+                "label": label_name,
+                "head_type": "classifier",
+                "feature": feature,
+                "importance": float(importance),
+            })
+
+        if pipeline.head2 is not None:
+            reg_importances = pipeline.head2.feature_importances_
+            for feature, importance in zip(feature_names, reg_importances):
+                rows.append({
+                    "label": label_name,
+                    "head_type": "regressor",
+                    "feature": feature,
+                    "importance": float(importance),
+                })
+
+    return pd.DataFrame(rows)
+
+
+def feature_importance_rankings_to_dataframe(model, splits: dict[str, Splits]):
+    fi_df = feature_importance_to_dataframe(model=model, splits=splits).copy()
+
+    fi_df["rank_within_head"] = (
+        fi_df.groupby(["label", "head_type"])["importance"]
+        .rank(method="min", ascending=False)
+    )
+
+    return fi_df
+
+
+def summarize_feature_importance(fi_df, top_k=10):
+    fi_df = fi_df.copy()
+
+    if "rank_within_head" not in fi_df.columns:
+        fi_df["rank_within_head"] = (
+            fi_df.groupby(["label", "head_type"])["importance"]
+            .rank(method="min", ascending=False)
+        )
+
+    summary = (
+        fi_df.groupby("feature")
+        .agg(
+            mean_importance=("importance", "mean"),
+            median_importance=("importance", "median"),
+            max_importance=("importance", "max"),
+            nonzero_count=("importance", lambda s: int((s > 0).sum())),
+            topk_count=("rank_within_head", lambda s: int((s <= top_k).sum())),
+        )
+        .reset_index()
+        .sort_values(["mean_importance", "max_importance"], ascending=False)
+    )
+
+    return fi_df, summary

@@ -4,11 +4,19 @@ import pandas as pd
 
 from logger import setup_logger
 from config import load_config
+from evaluation import evaluate_multilabel_model
 from preprocess import load_and_preprocess_data
 from split import make_label_specific_splits
 from tune_mode import TuneMode
 from multi_label_model import MultiLabelModel
 from plots import save_multilabel_dashboards
+from results import (
+    feature_importance_rankings_to_dataframe,
+    metrics_to_dataframe,
+    print_feature_importance,
+    print_metrics,
+    summarize_feature_importance,
+)
 from pathlib import Path
 
 
@@ -49,24 +57,34 @@ def main():
     )
 
     model = MultiLabelModel(
-        trainConfig=config,
-        splits=splits
+        train_config=config,
     )
 
     model.fit(
+        splits=splits,
         class_tune_mode=TuneMode.NONE,
         reg_tune_mode=TuneMode.NONE
     )
 
-    model.evaluate()
+    metrics = evaluate_multilabel_model(model, splits)
 
-    model.print_feature_importance(top_n=5)
-    model.print_metrics()
+    print_feature_importance(model=model, splits=splits, top_n=5)
+    print_metrics(metrics)
 
     if args.save:
         config.output_path.mkdir(parents=True, exist_ok=True)
 
-        metrics_df = model.metrics_to_dataframe(run_id=args.run_id)
+        n_features = {
+            label_name: splits[label_name].X_test_class.shape[1]
+            for label_name in metrics
+        }
+
+        metrics_df = metrics_to_dataframe(
+            metrics=metrics,
+            train_config=config,
+            run_id=args.run_id,
+            n_features=n_features,
+        )
 
         append_df_to_csv(metrics_df, config.output_path / "all_runs.csv")
 
@@ -77,7 +95,8 @@ def main():
     if args.feature_importance:
         config.output_path.mkdir(parents=True, exist_ok=True)
 
-        fi_df, fi_summary_df = model.summarize_feature_importance(top_k=10)
+        fi_ranked_df = feature_importance_rankings_to_dataframe(model=model, splits=splits)
+        fi_df, fi_summary_df = summarize_feature_importance(fi_ranked_df, top_k=10)
 
         fi_df.to_csv(config.output_path / "feature_importance_raw.csv", index=False)
         fi_summary_df.to_csv(config.output_path / "feature_importance_summary.csv", index=False)
@@ -86,6 +105,7 @@ def main():
         config.output_path.mkdir(parents=True, exist_ok=True)
         save_multilabel_dashboards(
             model=model,
+            splits=splits,
             output_dir=config.output_path / "plots",
             top_n_features=15
         )

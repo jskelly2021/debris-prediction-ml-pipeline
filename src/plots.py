@@ -158,13 +158,13 @@ def save_residual_histogram_plot(y_true, y_pred, title, out_path, bins=30):
     plt.close()
 
 
-def save_multilabel_dashboards(model, output_dir, top_n_features=15):
+def save_multilabel_dashboards(model, splits, output_dir, top_n_features=15):
     """
     Saves all useful plots for each label/head using the model's current test splits.
 
     Expected model interface:
       - model.models[label_name]["pipeline"]
-      - model.splits[label_name]
+      - splits[label_name]
       - split has X_test_class, X_test_reg, y_test_class, y_test_reg
       - pipeline.predict_df(X, prefix=label_name)
       - pipeline.head1 / pipeline.head2
@@ -179,7 +179,7 @@ def save_multilabel_dashboards(model, output_dir, top_n_features=15):
         log.h1(f"Saving plots for {label_name}")
 
         pipeline = info["pipeline"]
-        split = model.splits[label_name]
+        split = splits[label_name]
 
         label_dir = output_dir / label_name
         _ensure_dir(label_dir)
