@@ -60,7 +60,7 @@ feature_filtering:
   enabled: true
   drop_constant: true
   min_binary_positive_count: 20
-  max_dominant_value_fraction: 0.95
+  max_dominant_value_fraction: 0.5
 
 feature_cols_to_log:
   - sqft
