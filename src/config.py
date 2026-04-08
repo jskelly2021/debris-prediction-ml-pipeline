@@ -20,6 +20,7 @@ class TrainConfig:
     drop_cols: list[str] = field(default_factory=list)
     categorical_cols: list[str] = field(default_factory=list)
     categorical_encoding: dict = field(default_factory=dict)
+    feature_filtering: dict = field(default_factory=dict)
     feature_cols_to_log: list[str] = field(default_factory=list)
     label_names: list[str] = field(default_factory=list)
 

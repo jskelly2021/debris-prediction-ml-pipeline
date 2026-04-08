@@ -9,6 +9,7 @@ from regressor import train_regressor
 from classifier import train_classifier
 from resampling import apply_smote_single_label
 from categorical_preprocessing import CategoricalPreprocessor
+from feature_filter import FeatureFilter
 from dataclasses import dataclass
 from logger import Log
 
@@ -40,12 +41,15 @@ class TwoHeadPipeline:
         self.categorical_cols = pipelineConfig.categorical_cols
         self.categorical_encoding = pipelineConfig.categorical_encoding
         self.target_encoding_smoothing = pipelineConfig.target_encoding_smoothing
+        self.feature_filtering = pipelineConfig.feature_filtering or {}
         self.threshold = 0.5
         self.best_f1 = None
         self.head1 = self.__build_classifier()
         self.head2 = self.__build_regressor()
         self.class_preprocessor = None
         self.reg_preprocessor = None
+        self.class_feature_filter = None
+        self.reg_feature_filter = None
         self.class_feature_names_ = []
         self.reg_feature_names_ = []
         self.is_fitted = False
@@ -116,6 +120,12 @@ class TwoHeadPipeline:
         X_train_class = self.class_preprocessor.fit_transform(splits.X_train_class, splits.y_train_class)
         X_val_class = self.class_preprocessor.transform(splits.X_val_class)
         X_test_class = self.class_preprocessor.transform(splits.X_test_class)
+        self.class_feature_filter = self._build_feature_filter(
+            head_name=f"{class_target_col} classifier",
+        )
+        X_train_class = self.class_feature_filter.fit_transform(X_train_class)
+        X_val_class = self.class_feature_filter.transform(X_val_class)
+        X_test_class = self.class_feature_filter.transform(X_test_class)
         self.class_feature_names_ = X_train_class.columns.tolist()
 
         y_train_class = splits.y_train_class
@@ -145,6 +155,7 @@ class TwoHeadPipeline:
     def _prepare_reg_splits(self, splits: Splits, reg_target_col: str) -> Splits:
         if len(splits.X_train_reg) == 0:
             self.reg_preprocessor = None
+            self.reg_feature_filter = None
             self.reg_feature_names_ = []
             return splits
 
@@ -158,6 +169,12 @@ class TwoHeadPipeline:
         X_train_reg = self.reg_preprocessor.fit_transform(splits.X_train_reg, splits.y_train_reg)
         X_val_reg = self.reg_preprocessor.transform(splits.X_val_reg)
         X_test_reg = self.reg_preprocessor.transform(splits.X_test_reg)
+        self.reg_feature_filter = self._build_feature_filter(
+            head_name=f"{reg_target_col} regressor",
+        )
+        X_train_reg = self.reg_feature_filter.fit_transform(X_train_reg)
+        X_val_reg = self.reg_feature_filter.transform(X_val_reg)
+        X_test_reg = self.reg_feature_filter.transform(X_test_reg)
         self.reg_feature_names_ = X_train_reg.columns.tolist()
 
         return Splits(
@@ -181,6 +198,7 @@ class TwoHeadPipeline:
             raise ValueError("Model must be trained before prediction.")
 
         X_class = self.class_preprocessor.transform(X) if self.class_preprocessor is not None else X
+        X_class = self.class_feature_filter.transform(X_class) if self.class_feature_filter is not None else X_class
         y_prob = self.head1.predict_proba(X_class)[:, 1]
         y_class = (y_prob >= self.threshold).astype(int)
 
@@ -188,6 +206,7 @@ class TwoHeadPipeline:
             y_reg = np.zeros(len(X))
         else:
             X_reg = self.reg_preprocessor.transform(X) if self.reg_preprocessor is not None else X
+            X_reg = self.reg_feature_filter.transform(X_reg) if self.reg_feature_filter is not None else X_reg
             y_reg = self.head2.predict(X_reg)
             if self.log_regression_target:
                 y_reg = np.expm1(y_reg)
@@ -199,6 +218,15 @@ class TwoHeadPipeline:
             class_pred=y_class,
             reg_pred=y_reg,
             expected_volume_pred=y_expected
+        )
+
+
+    def _build_feature_filter(self, head_name: str) -> FeatureFilter:
+        return FeatureFilter(
+            enabled=self.feature_filtering.get("enabled", False),
+            drop_constant=self.feature_filtering.get("drop_constant", True),
+            min_binary_positive_count=self.feature_filtering.get("min_binary_positive_count", 0),
+            head_name=head_name,
         )
 
 

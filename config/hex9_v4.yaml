@@ -56,6 +56,11 @@ categorical_encoding:
 
 target_encoding_smoothing: 10.0
 
+feature_filtering:
+  enabled: false
+  drop_constant: true
+  min_binary_positive_count: 10
+
 feature_cols_to_log:
   - sqft
   - val_struct

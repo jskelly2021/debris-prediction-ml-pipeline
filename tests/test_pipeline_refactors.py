@@ -5,7 +5,7 @@ import math
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pandas as pd
 
@@ -42,6 +42,11 @@ class DummyConfig:
     smote = False
     scale_pos_weight = False
     log_target_reg = False
+    positive_only_regression = False
+    categorical_cols = []
+    categorical_encoding = {}
+    target_encoding_smoothing = 10.0
+    feature_filtering = {}
 
 
 class ConfigTests(unittest.TestCase):
@@ -85,6 +90,42 @@ class ConfigTests(unittest.TestCase):
         )
 
     @unittest.skipUnless(HAS_YAML, "PyYAML is required to load config files.")
+    def test_load_config_preserves_feature_filtering_section(self):
+        from config import load_config
+
+        temp_dir = tempfile.TemporaryDirectory()
+        path = Path(temp_dir.name) / "config.yaml"
+        path.write_text(
+            "\n".join([
+                "data_path: data.csv",
+                "output_path: outputs",
+                "label_names:",
+                "  - CD",
+                "class_target_cols:",
+                "  - Bin_CD",
+                "reg_target_cols:",
+                "  - VolCD_sum",
+                "feature_filtering:",
+                "  enabled: true",
+                "  drop_constant: true",
+                "  min_binary_positive_count: 20",
+            ]) + "\n",
+            encoding="utf-8",
+        )
+        self.addCleanup(temp_dir.cleanup)
+
+        config = load_config(str(path))
+
+        self.assertEqual(
+            config.feature_filtering,
+            {
+                "enabled": True,
+                "drop_constant": True,
+                "min_binary_positive_count": 20,
+            },
+        )
+
+    @unittest.skipUnless(HAS_YAML, "PyYAML is required to load config files.")
     def test_load_config_fails_for_length_mismatch(self):
         from config import load_config
 
@@ -110,7 +151,7 @@ class PipelineTests(unittest.TestCase):
         pipeline = TwoHeadPipeline(DummyConfig())
         splits = SimpleNamespace()
 
-        with patch("two_head_pipeline.train_classifier") as mock_train_classifier, patch("two_head_pipeline.train_regressor") as mock_train_regressor:
+        with patch("two_head_pipeline.train_classifier") as mock_train_classifier, patch("two_head_pipeline.train_regressor") as mock_train_regressor, patch.object(pipeline, "_prepare_class_splits", return_value=splits), patch.object(pipeline, "_prepare_reg_splits", return_value=splits):
             mock_train_classifier.return_value = ClassifierTrainingResult(
                 estimator=DummyClassifier(),
                 training_time=0.0,
@@ -145,6 +186,119 @@ class PipelineTests(unittest.TestCase):
 
         self.assertAlmostEqual(float(preds.reg_pred[0]), 0.0, places=6)
         self.assertAlmostEqual(float(preds.reg_pred[1]), 3.0, places=6)
+
+    @unittest.skipUnless(HAS_PIPELINE_DEPS, "pipeline tests require yaml, imblearn, and xgboost.")
+    def test_pipeline_applies_feature_filter_to_train_val_test_and_predict(self):
+        from classifier import ClassifierTrainingResult
+        from regressor import RegressorTrainingResult
+        from two_head_pipeline import TwoHeadPipeline
+
+        config = DummyConfig()
+        config.feature_filtering = {
+            "enabled": True,
+            "drop_constant": True,
+            "min_binary_positive_count": 2,
+        }
+
+        pipeline = TwoHeadPipeline(config)
+        splits = SimpleNamespace(
+            X_train_class=pd.DataFrame({"x": [1, 2, 3]}),
+            X_val_class=pd.DataFrame({"x": [4, 5]}),
+            X_test_class=pd.DataFrame({"x": [6, 7]}),
+            y_train_class=pd.Series([0, 1, 0]),
+            y_val_class=pd.Series([1, 0]),
+            y_test_class=pd.Series([0, 1]),
+            X_train_reg=pd.DataFrame({"x": [1, 2, 3]}),
+            X_val_reg=pd.DataFrame({"x": [4, 5]}),
+            X_test_reg=pd.DataFrame({"x": [6, 7]}),
+            y_train_reg=pd.Series([1.0, 2.0, 3.0]),
+            y_val_reg=pd.Series([4.0, 5.0]),
+            y_test_reg=pd.Series([6.0, 7.0]),
+        )
+
+        encoded_train = pd.DataFrame({
+            "num": [10, 20, 30],
+            "constant_onehot": [0, 0, 0],
+            "rare_flag": [0, 0, 1],
+            "common_flag": [1, 0, 1],
+        })
+        encoded_val = pd.DataFrame({
+            "num": [40, 50],
+            "constant_onehot": [0, 0],
+            "rare_flag": [1, 0],
+            "common_flag": [0, 1],
+        })
+        encoded_test = pd.DataFrame({
+            "num": [60, 70],
+            "constant_onehot": [0, 0],
+            "rare_flag": [0, 0],
+            "common_flag": [1, 1],
+        })
+        encoded_predict = pd.DataFrame({
+            "num": [80],
+            "constant_onehot": [0],
+            "rare_flag": [1],
+            "common_flag": [1],
+        })
+
+        class_transforms = [encoded_train, encoded_val, encoded_test, encoded_predict]
+        reg_transforms = [encoded_train, encoded_val, encoded_test, encoded_predict]
+
+        class RecordingClassifier(DummyClassifier):
+            def __init__(self):
+                self.predict_inputs = []
+
+            def predict_proba(self, X):
+                self.predict_inputs.append(X.copy())
+                return super().predict_proba(X)
+
+        class RecordingRegressor(DummyRegressor):
+            def __init__(self, predictions):
+                super().__init__(predictions)
+                self.predict_inputs = []
+
+            def predict(self, X):
+                self.predict_inputs.append(X.copy())
+                return super().predict(X)
+
+        classifier_estimator = RecordingClassifier()
+        regressor_estimator = RecordingRegressor([2.0])
+
+        with patch("two_head_pipeline.CategoricalPreprocessor") as mock_preprocessor_cls, patch("two_head_pipeline.train_classifier") as mock_train_classifier, patch("two_head_pipeline.train_regressor") as mock_train_regressor:
+            class_preprocessor = Mock()
+            reg_preprocessor = Mock()
+            mock_preprocessor_cls.side_effect = [class_preprocessor, reg_preprocessor]
+            class_preprocessor.fit_transform.return_value = class_transforms[0]
+            class_preprocessor.transform.side_effect = class_transforms[1:]
+            reg_preprocessor.fit_transform.return_value = reg_transforms[0]
+            reg_preprocessor.transform.side_effect = reg_transforms[1:]
+
+            mock_train_classifier.return_value = ClassifierTrainingResult(
+                estimator=classifier_estimator,
+                training_time=0.0,
+                best_threshold=0.5,
+                best_f1=0.9,
+            )
+            mock_train_regressor.return_value = RegressorTrainingResult(
+                estimator=regressor_estimator,
+                training_time=0.0,
+            )
+
+            pipeline.train(splits=splits, class_target_col="Bin_CD", reg_target_col="VolCD_sum")
+            pipeline.predict(pd.DataFrame({"x": [9]}))
+
+        class_train_splits = mock_train_classifier.call_args.kwargs["splits"]
+        reg_train_splits = mock_train_regressor.call_args.kwargs["splits"]
+
+        expected_columns = ["num", "common_flag"]
+        self.assertListEqual(class_train_splits.X_train_class.columns.tolist(), expected_columns)
+        self.assertListEqual(class_train_splits.X_val_class.columns.tolist(), expected_columns)
+        self.assertListEqual(class_train_splits.X_test_class.columns.tolist(), expected_columns)
+        self.assertListEqual(reg_train_splits.X_train_reg.columns.tolist(), expected_columns)
+        self.assertListEqual(reg_train_splits.X_val_reg.columns.tolist(), expected_columns)
+        self.assertListEqual(reg_train_splits.X_test_reg.columns.tolist(), expected_columns)
+        self.assertListEqual(classifier_estimator.predict_inputs[-1].columns.tolist(), expected_columns)
+        self.assertListEqual(regressor_estimator.predict_inputs[-1].columns.tolist(), expected_columns)
 
 
 class ConditionalRegressionTests(unittest.TestCase):
@@ -241,7 +395,6 @@ class SplitConsistencyTests(unittest.TestCase):
             y_class=y_class,
             y_reg=y_reg,
             label_specs=full_cfg.label_specs,
-            apply_smote=False,
             outlier_threshold=None,
             positive_only_regression=False,
             random_state=12,
@@ -251,7 +404,6 @@ class SplitConsistencyTests(unittest.TestCase):
             y_class=y_class[["Bin_CD"]],
             y_reg=y_reg[["VolCD_sum"]],
             label_specs=single_cfg.label_specs,
-            apply_smote=False,
             outlier_threshold=None,
             positive_only_regression=False,
             random_state=12,
@@ -309,6 +461,114 @@ class CategoricalEncodingTests(unittest.TestCase):
         test_out = encoder.transform(X_test)
 
         self.assertListEqual(train_out.columns.tolist(), test_out.columns.tolist())
+
+
+class FeatureFilterTests(unittest.TestCase):
+    def test_feature_filter_drops_constant_and_sparse_binary_columns(self):
+        from feature_filter import FeatureFilter
+
+        X = pd.DataFrame({
+            "city_A": [1, 0, 0],
+            "city_B": [0, 1, 0],
+            "city_C": [0, 0, 0],
+            "rare_flag": [0, 0, 1],
+            "num": [5, 6, 7],
+        })
+
+        feature_filter = FeatureFilter(
+            enabled=True,
+            drop_constant=True,
+            min_binary_positive_count=2,
+        )
+
+        transformed = feature_filter.fit_transform(X)
+
+        self.assertListEqual(feature_filter.dropped_constant_columns_, ["city_C"])
+        self.assertListEqual(feature_filter.dropped_sparse_binary_columns_, ["city_A", "city_B", "rare_flag"])
+        self.assertListEqual(transformed.columns.tolist(), ["num"])
+
+    def test_feature_filter_keeps_non_binary_numeric_columns(self):
+        from feature_filter import FeatureFilter
+
+        X = pd.DataFrame({
+            "num": [1, 2, 3],
+            "ratio": [0.0, 0.5, 1.0],
+        })
+
+        feature_filter = FeatureFilter(
+            enabled=True,
+            drop_constant=True,
+            min_binary_positive_count=3,
+        )
+
+        transformed = feature_filter.fit_transform(X)
+
+        self.assertListEqual(feature_filter.dropped_sparse_binary_columns_, [])
+        self.assertListEqual(transformed.columns.tolist(), ["num", "ratio"])
+
+    def test_feature_filter_treats_all_zero_and_all_one_as_constant_only(self):
+        from feature_filter import FeatureFilter
+
+        X = pd.DataFrame({
+            "all_zero": [0, 0, 0],
+            "all_one": [1, 1, 1],
+            "keep_me": [0, 1, 0],
+        })
+
+        feature_filter = FeatureFilter(
+            enabled=True,
+            drop_constant=True,
+            min_binary_positive_count=2,
+        )
+
+        transformed = feature_filter.fit_transform(X)
+
+        self.assertListEqual(feature_filter.dropped_constant_columns_, ["all_one", "all_zero"])
+        self.assertListEqual(feature_filter.dropped_sparse_binary_columns_, ["keep_me"])
+        self.assertListEqual(transformed.columns.tolist(), [])
+
+    def test_feature_filter_transform_reindexes_to_kept_columns(self):
+        from feature_filter import FeatureFilter
+
+        X_train = pd.DataFrame({
+            "keep_a": [1, 0, 1],
+            "drop_constant": [0, 0, 0],
+            "keep_b": [2, 3, 4],
+        })
+        X_new = pd.DataFrame({
+            "keep_b": [10],
+            "extra": [99],
+        })
+
+        feature_filter = FeatureFilter(enabled=True, drop_constant=True, min_binary_positive_count=0)
+        feature_filter.fit(X_train)
+
+        transformed = feature_filter.transform(X_new)
+
+        self.assertListEqual(transformed.columns.tolist(), ["keep_a", "keep_b"])
+        self.assertEqual(int(transformed.loc[0, "keep_a"]), 0)
+        self.assertEqual(int(transformed.loc[0, "keep_b"]), 10)
+
+    def test_feature_filter_disabled_is_no_op(self):
+        from feature_filter import FeatureFilter
+
+        X = pd.DataFrame({
+            "constant": [1, 1],
+            "binary": [0, 1],
+        })
+
+        feature_filter = FeatureFilter(
+            enabled=False,
+            drop_constant=True,
+            min_binary_positive_count=10,
+        )
+
+        transformed = feature_filter.fit_transform(X)
+
+        self.assertListEqual(feature_filter.kept_columns_, ["constant", "binary"])
+        self.assertListEqual(feature_filter.dropped_constant_columns_, [])
+        self.assertListEqual(feature_filter.dropped_sparse_binary_columns_, [])
+        self.assertListEqual(transformed.columns.tolist(), ["constant", "binary"])
 
 
 if __name__ == "__main__":
