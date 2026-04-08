@@ -226,6 +226,7 @@ class TwoHeadPipeline:
             enabled=self.feature_filtering.get("enabled", False),
             drop_constant=self.feature_filtering.get("drop_constant", True),
             min_binary_positive_count=self.feature_filtering.get("min_binary_positive_count", 0),
+            max_dominant_value_fraction=self.feature_filtering.get("max_dominant_value_fraction"),
             head_name=head_name,
         )
 

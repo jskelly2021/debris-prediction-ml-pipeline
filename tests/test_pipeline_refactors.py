@@ -109,6 +109,7 @@ class ConfigTests(unittest.TestCase):
                 "  enabled: true",
                 "  drop_constant: true",
                 "  min_binary_positive_count: 20",
+                "  max_dominant_value_fraction: 0.995",
             ]) + "\n",
             encoding="utf-8",
         )
@@ -122,6 +123,7 @@ class ConfigTests(unittest.TestCase):
                 "enabled": True,
                 "drop_constant": True,
                 "min_binary_positive_count": 20,
+                "max_dominant_value_fraction": 0.995,
             },
         )
 
@@ -485,6 +487,7 @@ class FeatureFilterTests(unittest.TestCase):
 
         self.assertListEqual(feature_filter.dropped_constant_columns_, ["city_C"])
         self.assertListEqual(feature_filter.dropped_sparse_binary_columns_, ["city_A", "city_B", "rare_flag"])
+        self.assertListEqual(feature_filter.dropped_near_constant_columns_, [])
         self.assertListEqual(transformed.columns.tolist(), ["num"])
 
     def test_feature_filter_keeps_non_binary_numeric_columns(self):
@@ -504,6 +507,7 @@ class FeatureFilterTests(unittest.TestCase):
         transformed = feature_filter.fit_transform(X)
 
         self.assertListEqual(feature_filter.dropped_sparse_binary_columns_, [])
+        self.assertListEqual(feature_filter.dropped_near_constant_columns_, [])
         self.assertListEqual(transformed.columns.tolist(), ["num", "ratio"])
 
     def test_feature_filter_treats_all_zero_and_all_one_as_constant_only(self):
@@ -525,6 +529,7 @@ class FeatureFilterTests(unittest.TestCase):
 
         self.assertListEqual(feature_filter.dropped_constant_columns_, ["all_one", "all_zero"])
         self.assertListEqual(feature_filter.dropped_sparse_binary_columns_, ["keep_me"])
+        self.assertListEqual(feature_filter.dropped_near_constant_columns_, [])
         self.assertListEqual(transformed.columns.tolist(), [])
 
     def test_feature_filter_transform_reindexes_to_kept_columns(self):
@@ -561,6 +566,7 @@ class FeatureFilterTests(unittest.TestCase):
             enabled=False,
             drop_constant=True,
             min_binary_positive_count=10,
+            max_dominant_value_fraction=0.995,
         )
 
         transformed = feature_filter.fit_transform(X)
@@ -568,7 +574,71 @@ class FeatureFilterTests(unittest.TestCase):
         self.assertListEqual(feature_filter.kept_columns_, ["constant", "binary"])
         self.assertListEqual(feature_filter.dropped_constant_columns_, [])
         self.assertListEqual(feature_filter.dropped_sparse_binary_columns_, [])
+        self.assertListEqual(feature_filter.dropped_near_constant_columns_, [])
         self.assertListEqual(transformed.columns.tolist(), ["constant", "binary"])
+
+    def test_feature_filter_drops_non_binary_near_constant_columns(self):
+        from feature_filter import FeatureFilter
+
+        X = pd.DataFrame({
+            "dominant_num": [5, 5, 5, 5, 7],
+            "binary_flag": [0, 0, 0, 1, 1],
+            "varying_num": [1, 2, 3, 4, 5],
+        })
+
+        feature_filter = FeatureFilter(
+            enabled=True,
+            drop_constant=True,
+            min_binary_positive_count=2,
+            max_dominant_value_fraction=0.8,
+        )
+
+        transformed = feature_filter.fit_transform(X)
+
+        self.assertListEqual(feature_filter.dropped_constant_columns_, [])
+        self.assertListEqual(feature_filter.dropped_sparse_binary_columns_, [])
+        self.assertListEqual(feature_filter.dropped_near_constant_columns_, ["dominant_num"])
+        self.assertListEqual(transformed.columns.tolist(), ["binary_flag", "varying_num"])
+
+    def test_feature_filter_near_constant_rule_skips_binary_columns(self):
+        from feature_filter import FeatureFilter
+
+        X = pd.DataFrame({
+            "binary_flag": [0, 0, 0, 0, 1],
+            "dominant_num": [9, 9, 9, 9, 8],
+        })
+
+        feature_filter = FeatureFilter(
+            enabled=True,
+            drop_constant=True,
+            min_binary_positive_count=0,
+            max_dominant_value_fraction=0.8,
+        )
+
+        transformed = feature_filter.fit_transform(X)
+
+        self.assertListEqual(feature_filter.dropped_sparse_binary_columns_, [])
+        self.assertListEqual(feature_filter.dropped_near_constant_columns_, ["dominant_num"])
+        self.assertListEqual(transformed.columns.tolist(), ["binary_flag"])
+
+    def test_feature_filter_near_constant_rule_is_disabled_when_unset(self):
+        from feature_filter import FeatureFilter
+
+        X = pd.DataFrame({
+            "dominant_num": [5, 5, 5, 5, 7],
+            "varying_num": [1, 2, 3, 4, 5],
+        })
+
+        feature_filter = FeatureFilter(
+            enabled=True,
+            drop_constant=True,
+            min_binary_positive_count=0,
+        )
+
+        transformed = feature_filter.fit_transform(X)
+
+        self.assertListEqual(feature_filter.dropped_near_constant_columns_, [])
+        self.assertListEqual(transformed.columns.tolist(), ["dominant_num", "varying_num"])
 
 
 if __name__ == "__main__":

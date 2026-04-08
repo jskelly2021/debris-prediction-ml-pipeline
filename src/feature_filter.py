@@ -12,16 +12,19 @@ class FeatureFilter:
         enabled=True,
         drop_constant=True,
         min_binary_positive_count=0,
+        max_dominant_value_fraction=None,
         head_name="features",
     ):
         self.enabled = enabled
         self.drop_constant = drop_constant
         self.min_binary_positive_count = min_binary_positive_count
+        self.max_dominant_value_fraction = max_dominant_value_fraction
         self.head_name = head_name
 
         self.kept_columns_ = None
         self.dropped_constant_columns_ = []
         self.dropped_sparse_binary_columns_ = []
+        self.dropped_near_constant_columns_ = []
 
     def _print_fit_report(self):
         log.h2(f"{self.head_name} feature filtering")
@@ -33,6 +36,10 @@ class FeatureFilter:
         log.body(f"Dropped sparse binary cols: {len(self.dropped_sparse_binary_columns_)}")
         if self.dropped_sparse_binary_columns_:
             log.body(f"  {self.dropped_sparse_binary_columns_}")
+
+        log.body(f"Dropped near-constant cols: {len(self.dropped_near_constant_columns_)}")
+        if self.dropped_near_constant_columns_:
+            log.body(f"  {self.dropped_near_constant_columns_}")
 
         log.body(f"Output feature count      : {len(self.kept_columns_)}")
         print()
@@ -47,6 +54,7 @@ class FeatureFilter:
 
         self.dropped_constant_columns_ = []
         self.dropped_sparse_binary_columns_ = []
+        self.dropped_near_constant_columns_ = []
 
         if not self.enabled:
             self.kept_columns_ = X.columns.tolist()
@@ -74,9 +82,23 @@ class FeatureFilter:
                 if positive_count < self.min_binary_positive_count:
                     dropped_sparse_binary.add(col)
 
+        dropped_near_constant = set()
+        if self.max_dominant_value_fraction is not None:
+            for col in X.columns:
+                if col in dropped_constant or col in dropped_sparse_binary:
+                    continue
+
+                if self._is_binary_column(X[col]):
+                    continue
+
+                dominant_value_fraction = X[col].value_counts(dropna=False, normalize=True).max()
+                if dominant_value_fraction >= self.max_dominant_value_fraction:
+                    dropped_near_constant.add(col)
+
         self.dropped_constant_columns_ = sorted(dropped_constant)
         self.dropped_sparse_binary_columns_ = sorted(dropped_sparse_binary)
-        dropped_columns = dropped_constant | dropped_sparse_binary
+        self.dropped_near_constant_columns_ = sorted(dropped_near_constant)
+        dropped_columns = dropped_constant | dropped_sparse_binary | dropped_near_constant
         self.kept_columns_ = [col for col in X.columns if col not in dropped_columns]
 
         self._print_fit_report()
