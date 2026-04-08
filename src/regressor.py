@@ -14,7 +14,7 @@ log = Log()
 
 @dataclass
 class RegressorTrainingResult:
-    estimator: object
+    estimator: object | None
     training_time: float
 
 
@@ -42,12 +42,14 @@ def train_regressor(
     y_train_reg = splits.y_train_reg
     y_val_reg = splits.y_val_reg
 
-    if log_target:
-        y_train_reg, y_val_reg = apply_log_transform(y_train_reg, y_val_reg)
-
     if len(X_train_reg) == 0:
         log.warn(f"Skipping regressor for {reg_target_col}: no positive training rows.")
-        return None
+        return RegressorTrainingResult(estimator=None, training_time=0.0)
+
+    if log_target:
+        if (y_train_reg < 0).any() or (y_val_reg < 0).any():
+            raise ValueError(f"log_target_reg requires nonnegative regression targets for {reg_target_col}.")
+        y_train_reg, y_val_reg = apply_log_transform(y_train_reg, y_val_reg)
 
     start = time.perf_counter()
 

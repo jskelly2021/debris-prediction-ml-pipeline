@@ -51,7 +51,7 @@ class TwoHeadPipeline:
 
     def __build_regressor(self):
         return XGBRegressor(
-            objective="reg:squarederror",
+            objective="reg:gamma",
             tree_method="hist",
             n_jobs=-1,
         )
@@ -87,6 +87,8 @@ class TwoHeadPipeline:
         
         self.head1 = classifierResults.estimator
         self.head2 = regressorResults.estimator
+        self.threshold = classifierResults.best_threshold
+        self.best_f1 = classifierResults.best_f1
         self.is_fitted = True
 
 

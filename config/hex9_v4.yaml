@@ -1,10 +1,10 @@
-data_path: data/hex9_v3.csv
-output_path: outputs/hex9_v3
+data_path: data/hex9_v4.csv
+output_path: outputs/hex9_v4
 
 class_target_cols:
-  # - Bin_volCD
-  # - Bin_volVG
-  - Bin_volBoth
+  # - Bin_CD
+  # - Bin_VG
+  - Bin_Both
 
 reg_target_cols:
   # - VolCD_sum
@@ -27,22 +27,21 @@ drop_cols:
 
   # Targets
   - VolCD
-  - VolCD_sum
-  - VolCD_med
   - VolVG
+  - VolCD_sum
   - VolVG_sum
-  - VolVG_med
-  - Bin_volCD
-  - Bin_volVG
   - VolBoth_sum
-  - Bin_volBoth
+  - Bin_CD
+  - Bin_VG
+  - Bin_Both
 
   # Variable Drop Features
-  # - fld_zone
 
 categorical_cols:
   - fld_zone
   - landcover
+  - landuse
+  - evac_degree
 
 feature_cols_to_log:
   - sqft
@@ -52,9 +51,9 @@ feature_cols_to_log:
 label_names:
   # - CD
   # - VG
-  - COMBINED
+  - BT
 
-outlier_threshold:
+outlier_threshold: 
 smote: false
 scale_pos_weight: true
 log_features: true

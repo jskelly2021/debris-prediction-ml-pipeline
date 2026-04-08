@@ -227,12 +227,17 @@ def save_multilabel_dashboards(model, splits, output_dir, top_n_features=15):
         reg_pred_df = pipeline.predict_df(split.X_test_reg, prefix=label_name)
 
         y_true_reg = split.y_test_reg
-        y_pred_reg = reg_pred_df[f"{label_name}_expected_volume_pred"]
+        if model.train_config.positive_only_regression:
+            y_pred_reg = reg_pred_df[f"{label_name}_reg_pred"]
+            reg_title = f"{label_name} Actual vs Conditional Volume Predicted"
+        else:
+            y_pred_reg = reg_pred_df[f"{label_name}_expected_volume_pred"]
+            reg_title = f"{label_name} Actual vs Expected Volume Predicted"
 
         save_actual_vs_predicted_plot(
             y_true=y_true_reg,
             y_pred=y_pred_reg,
-            title=f"{label_name} Actual vs Expected Volume Predicted",
+            title=reg_title,
             out_path=label_dir / "actual_vs_predicted.png",
         )
 

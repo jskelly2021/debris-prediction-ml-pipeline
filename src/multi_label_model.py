@@ -15,9 +15,6 @@ class MultiLabelModel:
         self,
         train_config: TrainConfig,
     ):
-        if len(train_config.class_target_cols) != len(train_config.reg_target_cols):
-            raise ValueError("class_target_cols and reg_target_cols must have the same length.")
-
         self.train_config = train_config
         self.models = {}
         self.is_fitted = False
@@ -29,9 +26,10 @@ class MultiLabelModel:
         class_tune_mode: TuneMode=TuneMode.NONE,
         reg_tune_mode: TuneMode=TuneMode.NONE
     ):
-        for i, label_name in enumerate(self.train_config.label_names):
-            class_col = self.train_config.class_target_cols[i]
-            reg_col = self.train_config.reg_target_cols[i]
+        for label_spec in self.train_config.label_specs:
+            label_name = label_spec.label_name
+            class_col = label_spec.class_target_col
+            reg_col = label_spec.reg_target_col
 
             log.h1(f"Training model for label: {label_name}")
 

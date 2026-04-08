@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 
 from config import TrainConfig
@@ -9,14 +11,37 @@ from split import Splits
 log = Log()
 
 
+def append_df_to_csv(df: pd.DataFrame, path: Path):
+    if path.exists():
+        existing = pd.read_csv(path)
+        df = pd.concat([existing, df], ignore_index=True)
+    df.to_csv(path, index=False)
+
+
 def print_metrics(metrics):
     if metrics is None:
         raise ValueError("No metrics available. Run evaluate() first.")
 
     for label_name, label_metrics in metrics.items():
+        classification = label_metrics.classification
+        regression = label_metrics.regression
+
         log.h1(f"Metrics for {label_name}")
-        label_metrics["classification"].print(label_name)
-        label_metrics["regression"].print(f"{label_name} Expected Volume")
+        log.h2(f"{label_name} Classification Metrics")
+        log.body(f"Positive Rate: {classification.positive_rate}")
+        log.body(f"N Samples    : {classification.n_samples}")
+        log.body(f"N Positive   : {classification.n_positive}")
+        log.body(f"Accuracy     : {classification.accuracy}")
+        log.body(f"Precision    : {classification.precision}")
+        log.body(f"Recall       : {classification.recall}")
+        log.body(f"F1 Score     : {classification.f1}")
+        log.body(f"ROC AUC      : {classification.roc_auc}")
+
+        log.h2(f"{label_name} {label_metrics.regression_display_name} Regression Metrics")
+        log.body(f"N Samples: {regression.n_samples}")
+        log.body(f"RMSE     : {regression.rmse}")
+        log.body(f"MAE      : {regression.mae}")
+        log.body(f"R²       : {regression.r2}")
 
 
 def metrics_to_dataframe(metrics, train_config: TrainConfig, run_id=None, n_features=None):
@@ -26,16 +51,16 @@ def metrics_to_dataframe(metrics, train_config: TrainConfig, run_id=None, n_feat
     rows = []
 
     for label_name, label_metrics in metrics.items():
-        c = label_metrics["classification"]
-        r = label_metrics["regression"]
+        c = label_metrics.classification
+        r = label_metrics.regression
 
         label_n_features = None if n_features is None else n_features.get(label_name)
 
         rows.append({
             "run_id": run_id,
             "label": label_name,
-            "class_target": label_metrics["class_col"],
-            "reg_target": label_metrics["reg_col"],
+            "class_target": label_metrics.class_col,
+            "reg_target": label_metrics.reg_col,
             "n_features": label_n_features,
 
             "smote": train_config.smote,
@@ -60,6 +85,29 @@ def metrics_to_dataframe(metrics, train_config: TrainConfig, run_id=None, n_feat
         })
 
     return pd.DataFrame(rows)
+
+
+def save_metrics_outputs(metrics, splits, train_config: TrainConfig, output_path, run_id):
+    output_path = Path(output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    n_features = {
+        label_name: splits[label_name].X_test_class.shape[1]
+        for label_name in metrics
+    }
+
+    metrics_df = metrics_to_dataframe(
+        metrics=metrics,
+        train_config=train_config,
+        run_id=run_id,
+        n_features=n_features,
+    )
+
+    append_df_to_csv(metrics_df, output_path / "all_runs.csv")
+
+    for label_name in metrics_df["label"].unique():
+        label_df = metrics_df[metrics_df["label"] == label_name]
+        append_df_to_csv(label_df, output_path / f"{label_name}_metrics.csv")
 
 
 def print_feature_importance(model, splits: dict[str, Splits], top_n=10):
@@ -156,3 +204,14 @@ def summarize_feature_importance(fi_df, top_k=10):
     )
 
     return fi_df, summary
+
+
+def save_feature_importance_outputs(model, splits, output_path, top_k=10):
+    output_path = Path(output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    fi_ranked_df = feature_importance_rankings_to_dataframe(model=model, splits=splits)
+    fi_df, fi_summary_df = summarize_feature_importance(fi_ranked_df, top_k=top_k)
+
+    fi_df.to_csv(output_path / "feature_importance_raw.csv", index=False)
+    fi_summary_df.to_csv(output_path / "feature_importance_summary.csv", index=False)

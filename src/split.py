@@ -3,6 +3,7 @@ import pandas as pd
 
 from dataclasses import dataclass
 from sklearn.model_selection import train_test_split
+from config import LabelSpec
 from logger import Log
 from resampling import apply_smote_single_label
 
@@ -38,27 +39,24 @@ def _remove_outliers(X, y, outlier_threshold):
     return X.loc[mask], y.loc[mask]
 
 
-def _get_train_val_test_splits(X, y_class, y_reg, class_target_cols, holdout_size=0.2, random_state=12) -> Splits:
-    stratify_labels = y_class[class_target_cols[0]].astype(str)
-    for label in class_target_cols[1:]:
-        stratify_labels += "_" + y_class[label].astype(str)
+def _filter_positive_regression_rows(X, y_reg, y_class):
+    mask = y_class == 1
+    return X.loc[mask], y_reg.loc[mask]
 
+
+def _get_train_val_test_splits(X, y_class, y_reg, holdout_size=0.2, random_state=12) -> Splits:
     train_idx, temp_idx = train_test_split(
         X.index,
         test_size=holdout_size,
         random_state=random_state,
-        stratify=stratify_labels
+        shuffle=True,
     )
-
-    temp_stratify = y_class.loc[temp_idx, class_target_cols[0]].astype(str)
-    for label in class_target_cols[1:]:
-        temp_stratify += "_" + y_class.loc[temp_idx, label].astype(str)
 
     val_idx, test_idx = train_test_split(
         temp_idx,
         test_size=0.50,
         random_state=random_state,
-        stratify=temp_stratify
+        shuffle=True,
     )
 
     splits = Splits(
@@ -83,11 +81,10 @@ def make_label_specific_splits(
     X,
     y_class,
     y_reg,
-    class_target_cols,
-    reg_target_cols,
-    labels,
+    label_specs: list[LabelSpec],
     apply_smote,
     outlier_threshold,
+    positive_only_regression,
     holdout_size=0.2,
     random_state=12
 ) -> dict[str, Splits]:
@@ -97,26 +94,45 @@ def make_label_specific_splits(
         X,
         y_class,
         y_reg,
-        class_target_cols,
         holdout_size,
         random_state
     )
 
     splits = { } 
 
-    for i, label in enumerate(class_target_cols):
+    for label_spec in label_specs:
+        label_name = label_spec.label_name
+        class_col = label_spec.class_target_col
+        reg_col = label_spec.reg_target_col
 
         X_train_class = base.X_train_class.copy()
-        y_train_class = base.y_train_class[class_target_cols[i]].copy()
+        y_train_class = base.y_train_class[class_col].copy()
 
         X_train_reg = base.X_train_reg.copy()
-        y_train_reg = base.y_train_reg[reg_target_cols[i]].copy()
+        y_train_reg = base.y_train_reg[reg_col].copy()
 
         X_val_reg = base.X_val_reg.copy()
-        y_val_reg = base.y_val_reg[reg_target_cols[i]].copy()
+        y_val_reg = base.y_val_reg[reg_col].copy()
 
         X_test_reg = base.X_test_reg.copy()
-        y_test_reg = base.y_test_reg[reg_target_cols[i]].copy()
+        y_test_reg = base.y_test_reg[reg_col].copy()
+
+        if positive_only_regression:
+            X_train_reg, y_train_reg = _filter_positive_regression_rows(
+                X_train_reg,
+                y_train_reg,
+                base.y_train_class[class_col],
+            )
+            X_val_reg, y_val_reg = _filter_positive_regression_rows(
+                X_val_reg,
+                y_val_reg,
+                base.y_val_class[class_col],
+            )
+            X_test_reg, y_test_reg = _filter_positive_regression_rows(
+                X_test_reg,
+                y_test_reg,
+                base.y_test_class[class_col],
+            )
 
         X_train_reg, y_train_reg = _remove_outliers(X_train_reg, y_train_reg, outlier_threshold)
         X_val_reg, y_val_reg = _remove_outliers(X_val_reg, y_val_reg, outlier_threshold)
@@ -126,17 +142,17 @@ def make_label_specific_splits(
             X_train_class, y_train_class = apply_smote_single_label(
                 X_train_class,
                 y_train_class,
-                label_name=label,
+                label_name=class_col,
                 random_state=random_state
             )
 
-        splits[labels[i]] = Splits(
+        splits[label_name] = Splits(
                 X_train_class=X_train_class,
                 X_val_class=base.X_val_class,
                 X_test_class=base.X_test_class,
                 y_train_class=y_train_class,
-                y_val_class=base.y_val_class[class_target_cols[i]],
-                y_test_class=base.y_test_class[class_target_cols[i]],
+                y_val_class=base.y_val_class[class_col],
+                y_test_class=base.y_test_class[class_col],
 
                 X_train_reg=X_train_reg,
                 X_val_reg=X_val_reg,

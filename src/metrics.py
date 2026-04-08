@@ -1,10 +1,5 @@
 
 import numpy as np
-from logger import Log
-
-
-log = Log()
-
 
 from dataclasses import dataclass
 from sklearn.metrics import (
@@ -42,17 +37,6 @@ class ClassificationMetrics:
             "roc_auc": self.roc_auc,
         }
 
-    def print(self, label):
-        log.h2(f"{label} Classification Metrics")
-        log.body(f"Positive Rate: {self.positive_rate}")
-        log.body(f"N Samples    : {self.n_samples}")
-        log.body(f"N Positive   : {self.n_positive}")
-        log.body(f"Accuracy     : {self.accuracy}")
-        log.body(f"Precision    : {self.precision}")
-        log.body(f"Recall       : {self.recall}")
-        log.body(f"F1 Score     : {self.f1}")
-        log.body(f"ROC AUC      : {self.roc_auc}")
-
 
 @dataclass
 class RegressionMetrics:
@@ -68,13 +52,6 @@ class RegressionMetrics:
             "mae": self.mae,
             "r2": self.r2,
         }
-
-    def print(self, label):
-        log.h2(f"{label} Regression Metrics")
-        log.body(f"N Samples: {self.n_samples}")
-        log.body(f"RMSE     : {self.rmse}")
-        log.body(f"MAE      : {self.mae}")
-        log.body(f"R²       : {self.r2}")
 
 
 def compute_classification_metrics(y_true, y_pred, y_prob):
@@ -97,6 +74,14 @@ def compute_classification_metrics(y_true, y_pred, y_prob):
 def compute_regression_metrics(y_true, y_pred):
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
+
+    if len(y_true) == 0:
+        return RegressionMetrics(
+            n_samples=0,
+            rmse=np.nan,
+            mae=np.nan,
+            r2=np.nan,
+        )
 
     return RegressionMetrics(
         n_samples=int(len(y_true)),
