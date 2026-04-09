@@ -11,6 +11,7 @@ class LabelSpec:
     class_target_col: str
     reg_target_col: str
 
+
 @dataclass
 class TrainConfig:
     data_path: Path
@@ -44,6 +45,7 @@ class TrainConfig:
             class_target_cols=self.class_target_cols,
             reg_target_cols=self.reg_target_cols,
         )
+
 
 def _build_label_specs(label_names: list[str], class_target_cols: list[str], reg_target_cols: list[str]) -> list[LabelSpec]:
     if not (len(label_names) == len(class_target_cols) == len(reg_target_cols)):
