@@ -22,6 +22,8 @@ def _resolve_encoding_config(categorical_encoding):
 
 
 def resolve_column_encodings(categorical_cols, categorical_encoding):
+    """Resolve categorical encoding mode for each configured column."""
+
     default_encoding, overrides = _resolve_encoding_config(categorical_encoding)
 
     if default_encoding not in SUPPORTED_ENCODINGS:
@@ -42,6 +44,13 @@ def resolve_column_encodings(categorical_cols, categorical_encoding):
 
 
 class TargetEncoder:
+    """Encode categories using smoothed target means.
+
+    Attributes:
+        global_mean_: Fallback value for unseen categories.
+        mapping_: Category-to-encoded-value mapping.
+    """
+
     def __init__(self, smoothing=10.0):
         self.smoothing = smoothing
         self.global_mean_ = None
@@ -49,6 +58,8 @@ class TargetEncoder:
         self.preview_ = {}
 
     def fit(self, series, y):
+        """Fit target means for one categorical feature."""
+
         series = pd.Series(series, copy=True).fillna(MISSING_CATEGORY)
         y = pd.Series(y, index=series.index, copy=True)
 
@@ -69,11 +80,20 @@ class TargetEncoder:
         return self
 
     def transform(self, series):
+        """Transform categories to encoded numeric values."""
+
         series = pd.Series(series, copy=True).fillna(MISSING_CATEGORY)
         return series.map(self.mapping_).fillna(self.global_mean_).astype(float)
 
 
 class CategoricalPreprocessor:
+    """Apply configured categorical preprocessing to feature DataFrames.
+
+    Attributes:
+        feature_names_: Output feature names after transformation.
+        column_encodings_: Resolved encoding mode per categorical column.
+    """
+
     def __init__(
         self,
         categorical_cols,
@@ -120,6 +140,12 @@ class CategoricalPreprocessor:
         print()
 
     def fit(self, X, y):
+        """Fit categorical encoders on a feature DataFrame.
+
+        Args:
+            X: Feature DataFrame.
+        """
+
         X = X.copy()
 
         self.available_categorical_cols_ = [col for col in self.categorical_cols if col in X.columns]
@@ -155,6 +181,8 @@ class CategoricalPreprocessor:
         return self
 
     def transform(self, X):
+        """Transform a feature DataFrame with fitted categorical encoders."""
+
         X = X.copy()
         parts = []
 
@@ -196,5 +224,7 @@ class CategoricalPreprocessor:
         return pd.concat(parts, axis=1)
 
     def fit_transform(self, X, y):
+        """Fit encoders and return transformed features."""
+
         self.fit(X, y)
         return self.transform(X)

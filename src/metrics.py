@@ -16,6 +16,8 @@ from sklearn.metrics import (
 
 @dataclass
 class ClassificationMetrics:
+    """Store binary classification metric values."""
+
     positive_rate: float
     n_samples: int
     n_positive: int
@@ -26,6 +28,8 @@ class ClassificationMetrics:
     roc_auc: float
 
     def to_dict(self):
+        """Return metrics as a plain dictionary."""
+
         return {
             "positive_rate": self.positive_rate,
             "n_samples": self.n_samples,
@@ -40,12 +44,16 @@ class ClassificationMetrics:
 
 @dataclass
 class RegressionMetrics:
+    """Store regression metric values."""
+
     n_samples: int
     rmse: float
     mae: float
     r2: float
 
     def to_dict(self):
+        """Return metrics as a plain dictionary."""
+
         return {
             "n_samples": self.n_samples,
             "rmse": self.rmse,
@@ -55,6 +63,8 @@ class RegressionMetrics:
 
 
 def compute_classification_metrics(y_true, y_pred, y_prob):
+    """Compute binary classification metrics from predictions."""
+
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
     y_prob = np.asarray(y_prob)
@@ -72,6 +82,8 @@ def compute_classification_metrics(y_true, y_pred, y_prob):
 
 
 def compute_regression_metrics(y_true, y_pred):
+    """Compute regression metrics from predicted values."""
+
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
 

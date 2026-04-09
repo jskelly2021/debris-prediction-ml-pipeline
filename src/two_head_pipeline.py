@@ -19,6 +19,8 @@ log = Log()
 
 @dataclass
 class Preds:
+    """Store predictions from a classifier/regressor label pipeline."""
+
     class_prob: np.ndarray
     class_pred: np.ndarray
     reg_pred: np.ndarray
@@ -26,6 +28,13 @@ class Preds:
 
 
 class TwoHeadPipeline:
+    """Train and run one label's classifier and regressor heads.
+
+    Attributes:
+        threshold: Classification threshold selected on validation data.
+        class_feature_names_: Classifier output feature names.
+    """
+
     def __init__(
         self,
         pipelineConfig,
@@ -80,6 +89,8 @@ class TwoHeadPipeline:
         class_tune_mode=TuneMode.NONE,
         reg_tune_mode=TuneMode.NONE
     ):
+        """Train classification and regression heads for one label."""
+
         class_splits = self._prepare_class_splits(splits, class_target_col)
         classifierResults = train_classifier(
             estimator=self.head1,
@@ -110,6 +121,8 @@ class TwoHeadPipeline:
 
 
     def _prepare_class_splits(self, splits: Splits, class_target_col: str) -> Splits:
+        """Preprocess and filter classifier split features."""
+
         self.class_preprocessor = CategoricalPreprocessor(
             categorical_cols=self.categorical_cols,
             categorical_encoding=self.categorical_encoding,
@@ -153,6 +166,8 @@ class TwoHeadPipeline:
 
 
     def _prepare_reg_splits(self, splits: Splits, reg_target_col: str) -> Splits:
+        """Preprocess and filter regressor split features."""
+
         if len(splits.X_train_reg) == 0:
             self.reg_preprocessor = None
             self.reg_feature_filter = None
@@ -194,6 +209,8 @@ class TwoHeadPipeline:
 
 
     def predict(self, X):
+        """Predict class, regression, and expected-volume outputs."""
+
         if not self.is_fitted:
             raise ValueError("Model must be trained before prediction.")
 
@@ -222,6 +239,8 @@ class TwoHeadPipeline:
 
 
     def _build_feature_filter(self, head_name: str) -> FeatureFilter:
+        """Create a feature filter from config settings."""
+
         return FeatureFilter(
             enabled=self.feature_filtering.get("enabled", False),
             drop_constant=self.feature_filtering.get("drop_constant", True),
@@ -232,6 +251,8 @@ class TwoHeadPipeline:
 
 
     def predict_df(self, X, prefix):
+        """Return predictions as a DataFrame with label-prefixed columns."""
+
         preds = self.predict(X)
         return pd.DataFrame({
             f"{prefix}_class_prob": preds.class_prob,

@@ -10,6 +10,8 @@ log = Log()
 
 
 def _apply_log_to_features(X, log_feature_cols):
+    """Apply log1p to configured feature columns."""
+
     X = X.copy()
 
     for col in log_feature_cols:
@@ -48,6 +50,12 @@ def _preprocess_data(
     log_features,
     feature_cols_to_log
 ):
+    """Split raw data into feature, class-target, and regression-target frames.
+
+    Args:
+        df: Raw input DataFrame.
+    """
+
     df = df.copy()
 
     missing_class = [c for c in class_target_cols if c not in df.columns]
@@ -66,6 +74,8 @@ def _preprocess_data(
 
 
 def _load_data(data_path):
+    """Load the configured CSV dataset."""
+
     log.info(f"Loading data from {data_path}...")
     df = pd.read_csv(data_path)
     log.info(f"Data loaded successfully. Shape: {df.shape}\n")
@@ -73,6 +83,12 @@ def _load_data(data_path):
 
 
 def load_and_preprocess_data(config: TrainConfig):
+    """Load and preprocess data using the training config.
+
+    Returns:
+        Feature DataFrame, classification targets, and regression targets.
+    """
+
     df = _load_data(config.data_path)
 
     log.info("Preprocessing data...")

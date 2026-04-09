@@ -11,6 +11,8 @@ CYAN = "\033[96m"
 
 
 def setup_logger():
+    """Configure process-wide console logging."""
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(message)s",
@@ -18,29 +20,43 @@ def setup_logger():
 
 
 class Log:
+    """Small wrapper for formatted pipeline log messages."""
+
     def __init__(self):
         self.log = logging.getLogger("MultiLabelModel")
         
     def h1(self, text: str) -> None:
+        """Log a top-level section heading."""
+
         line = "=" * 60
         self.log.info(f"\n{BLUE}{line}")
         self.log.info(text.upper())
         self.log.info(f"{line}{RESET}\n")
 
     def h2(self, text: str) -> None:
+        """Log a subsection heading."""
+
         line = "-" * 60
         self.log.info(f"{CYAN}{line}")
         self.log.info(text)
         self.log.info(f"{line}{RESET}")
 
     def body(self, text: str) -> None:
+        """Log plain body text."""
+
         self.log.info(text)
 
     def info(self, text: str) -> None:
+        """Log an info message."""
+
         self.log.info(f"{GREEN}[INFO]{RESET} {text}")
 
     def warn(self, text: str) -> None:
+        """Log a warning message."""
+
         self.log.warning(f"{YELLOW}[WARN]{RESET} {text}")
     
     def error(self, text: str) -> None:
+        """Log an error message."""
+
         self.log.error(f"{RED}[ERROR]{RESET} {text}")

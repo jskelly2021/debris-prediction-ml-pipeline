@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class LabelSpec:
+    """Map one label name to its class and regression targets."""
+
     label_name: str
     class_target_col: str
     reg_target_col: str
@@ -14,6 +16,13 @@ class LabelSpec:
 
 @dataclass
 class TrainConfig:
+    """Hold YAML-driven training settings.
+
+    Attributes:
+        data_path: CSV input path.
+        label_specs: Per-label class/regression target mappings.
+    """
+
     data_path: Path
     output_path: Path = Path("outputs")
     class_target_cols: list[str] = field(default_factory=list)
@@ -48,6 +57,8 @@ class TrainConfig:
 
 
 def _build_label_specs(label_names: list[str], class_target_cols: list[str], reg_target_cols: list[str]) -> list[LabelSpec]:
+    """Build aligned label specs from config target lists."""
+
     if not (len(label_names) == len(class_target_cols) == len(reg_target_cols)):
         raise ValueError("label_names, class_target_cols, and reg_target_cols must have the same length.")
 
@@ -66,6 +77,12 @@ def _build_label_specs(label_names: list[str], class_target_cols: list[str], reg
 
 
 def load_config(config_path: str) -> TrainConfig:
+    """Load a YAML training config.
+
+    Args:
+        config_path: Path to a YAML config file.
+    """
+
     config_path = Path(config_path)
 
     with config_path.open("r") as file:

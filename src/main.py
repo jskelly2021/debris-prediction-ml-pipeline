@@ -18,6 +18,8 @@ from results import (
 
 
 def parse_args():
+    """Parse CLI arguments for a training run."""
+
     parser = argparse.ArgumentParser(description="Train multi-label two-head XGBoost model")
     parser.add_argument("config_path", type=str, help="Path to YAML config file")
     parser.add_argument("--run-id", type=str, default="default_run")
@@ -29,6 +31,8 @@ def parse_args():
 
 
 def main():
+    """Run the configured training, evaluation, and optional exports."""
+
     setup_logger()
     args = parse_args()
     config = load_config(args.config_path)

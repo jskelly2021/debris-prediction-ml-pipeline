@@ -14,6 +14,13 @@ log = Log()
 
 @dataclass
 class RegressorTrainingResult:
+    """Store the result of regression-head training.
+
+    Attributes:
+        estimator: Fitted estimator, or None when skipped.
+        training_time: Training duration in seconds.
+    """
+
     estimator: object | None
     training_time: float
 
@@ -34,6 +41,11 @@ def train_regressor(
     log_target,
     tune_mode
 ) -> RegressorTrainingResult:
+    """Train a regression head for one target.
+
+    Args:
+        splits: Regression feature matrices and targets.
+    """
 
     log.info("Training Regressor...")
 

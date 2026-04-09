@@ -16,6 +16,13 @@ log = Log()
 
 @dataclass
 class ClassifierTrainingResult:
+    """Store the result of classification-head training.
+
+    Attributes:
+        estimator: Fitted classifier.
+        best_threshold: Validation threshold selected by F1.
+    """
+
     estimator: object
     training_time: float
     best_threshold: float
@@ -23,6 +30,8 @@ class ClassifierTrainingResult:
 
 
 def tune_threshold(y_true, y_prob):
+    """Select the classification threshold with best F1."""
+
     thresholds = np.linspace(0.05, 0.95, 19)
 
     best_threshold = 0.5
@@ -39,6 +48,8 @@ def tune_threshold(y_true, y_prob):
 
 
 def scale_pos_weight(estimator, y_train_cls):
+    """Set XGBoost positive-class weighting from binary targets."""
+
     neg_count = (y_train_cls == 0).sum()
     pos_count = (y_train_cls == 1).sum()
 
@@ -60,6 +71,12 @@ def train_classifier(
     apply_scale_pos_weight,
     tune_mode
 ) -> ClassifierTrainingResult:
+    """Train a classification head for one target.
+
+    Args:
+        splits: Classification feature matrices and targets.
+    """
+
     log.info("Training Classifier...")
 
     X_train_cls = splits.X_train_class

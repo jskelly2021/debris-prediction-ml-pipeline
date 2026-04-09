@@ -10,6 +10,8 @@ from metrics import (
 
 @dataclass
 class LabelEvaluationResult:
+    """Store classification and regression metrics for one label."""
+
     classification: ClassificationMetrics
     regression: RegressionMetrics
     class_col: str
@@ -19,6 +21,12 @@ class LabelEvaluationResult:
 
 
 def evaluate_multilabel_model(model, splits):
+    """Evaluate a fitted multi-label model on test splits.
+
+    Args:
+        splits: Label-specific test split mapping.
+    """
+
     if not getattr(model, "is_fitted", False):
         raise ValueError("Model must be fitted before evaluation.")
 

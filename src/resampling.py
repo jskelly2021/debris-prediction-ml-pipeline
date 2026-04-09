@@ -9,6 +9,8 @@ log = Log()
 
 
 def apply_smote_single_label(X_train, y_train, label_name, random_state=12, k_neighbors=5):
+    """Apply SMOTE to one binary classification training set."""
+
     X_train = X_train.copy()
     y_train = pd.Series(y_train).copy()
 

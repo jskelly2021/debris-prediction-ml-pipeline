@@ -11,6 +11,13 @@ log = Log()
 
 
 class MultiLabelModel:
+    """Coordinate one two-head pipeline per configured label.
+
+    Attributes:
+        models: Mapping of label names to fitted pipelines.
+        is_fitted: Whether all label pipelines have been trained.
+    """
+
     def __init__(
         self,
         train_config: TrainConfig,
@@ -26,6 +33,12 @@ class MultiLabelModel:
         class_tune_mode: TuneMode=TuneMode.NONE,
         reg_tune_mode: TuneMode=TuneMode.NONE
     ):
+        """Fit all configured label pipelines.
+
+        Args:
+            splits: Label-specific train/validation/test split mapping.
+        """
+
         for label_spec in self.train_config.label_specs:
             label_name = label_spec.label_name
             class_col = label_spec.class_target_col
@@ -56,6 +69,8 @@ class MultiLabelModel:
 
 
     def predict(self, X):
+        """Predict all labels for a feature DataFrame."""
+
         if not self.is_fitted:
             raise ValueError("MultiLabelModel must be fitted before prediction.")
 

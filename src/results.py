@@ -12,6 +12,8 @@ log = Log()
 
 
 def append_df_to_csv(df: pd.DataFrame, path: Path):
+    """Append a DataFrame to a CSV, creating it if needed."""
+
     if path.exists():
         existing = pd.read_csv(path)
         df = pd.concat([existing, df], ignore_index=True)
@@ -19,6 +21,8 @@ def append_df_to_csv(df: pd.DataFrame, path: Path):
 
 
 def print_metrics(metrics):
+    """Print classification and regression metrics by label."""
+
     if metrics is None:
         raise ValueError("No metrics available. Run evaluate() first.")
 
@@ -45,6 +49,8 @@ def print_metrics(metrics):
 
 
 def metrics_to_dataframe(metrics, train_config: TrainConfig, run_id=None, n_features=None):
+    """Convert label metrics to a run-summary DataFrame."""
+
     if metrics is None:
         raise ValueError("No metrics available. Run evaluate() first.")
 
@@ -88,6 +94,8 @@ def metrics_to_dataframe(metrics, train_config: TrainConfig, run_id=None, n_feat
 
 
 def save_metrics_outputs(metrics, splits, train_config: TrainConfig, output_path, run_id):
+    """Save aggregate and per-label metric CSV outputs."""
+
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -111,6 +119,8 @@ def save_metrics_outputs(metrics, splits, train_config: TrainConfig, output_path
 
 
 def print_feature_importance(model, splits: dict[str, Splits], top_n=10):
+    """Print top classifier and regressor features by label."""
+
     if not getattr(model, "is_fitted", False):
         raise ValueError("Model must be fitted before printing feature importance.")
 
@@ -140,6 +150,8 @@ def print_feature_importance(model, splits: dict[str, Splits], top_n=10):
 
 
 def feature_importance_to_dataframe(model, splits: dict[str, Splits]):
+    """Export raw feature importance values to a DataFrame."""
+
     if not getattr(model, "is_fitted", False):
         raise ValueError("Model must be fitted before exporting feature importance.")
 
@@ -173,6 +185,8 @@ def feature_importance_to_dataframe(model, splits: dict[str, Splits]):
 
 
 def feature_importance_rankings_to_dataframe(model, splits: dict[str, Splits]):
+    """Add per-label/head ranks to feature importance values."""
+
     fi_df = feature_importance_to_dataframe(model=model, splits=splits).copy()
 
     fi_df["rank_within_head"] = (
@@ -184,6 +198,8 @@ def feature_importance_rankings_to_dataframe(model, splits: dict[str, Splits]):
 
 
 def summarize_feature_importance(fi_df, top_k=10):
+    """Summarize feature importance across labels and heads."""
+
     fi_df = fi_df.copy()
 
     if "rank_within_head" not in fi_df.columns:
@@ -209,6 +225,8 @@ def summarize_feature_importance(fi_df, top_k=10):
 
 
 def save_feature_importance_outputs(model, splits, output_path, top_k=10):
+    """Save raw and summarized feature-importance CSV outputs."""
+
     output_path = Path(output_path)
     output_path.mkdir(parents=True, exist_ok=True)
 

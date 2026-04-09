@@ -7,6 +7,13 @@ log = Log()
 
 
 class FeatureFilter:
+    """Drop configured low-information feature columns.
+
+    Attributes:
+        kept_columns_: Columns retained after fitting.
+        dropped_constant_columns_: Constant columns removed during fitting.
+    """
+
     def __init__(
         self,
         enabled=True,
@@ -49,6 +56,8 @@ class FeatureFilter:
         return non_null_unique.issubset({0, 1})
 
     def fit(self, X):
+        """Fit feature filtering rules on a feature DataFrame."""
+
         if not isinstance(X, pd.DataFrame):
             raise TypeError("FeatureFilter expects a pandas DataFrame.")
 
@@ -105,6 +114,8 @@ class FeatureFilter:
         return self
 
     def transform(self, X):
+        """Return a DataFrame restricted to fitted feature columns."""
+
         if self.kept_columns_ is None:
             raise ValueError("FeatureFilter must be fitted before transform.")
 
@@ -114,5 +125,7 @@ class FeatureFilter:
         return X.reindex(columns=self.kept_columns_, fill_value=0)
 
     def fit_transform(self, X):
+        """Fit filtering rules and return filtered features."""
+
         self.fit(X)
         return self.transform(X)

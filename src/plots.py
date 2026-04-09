@@ -35,6 +35,8 @@ def _safe_feature_importances(model, feature_names):
 
 
 def print_top_features(model, feature_names, label, top_n=10):
+    """Print top feature importances for one model head."""
+
     fi = _safe_feature_importances(model, feature_names)
 
     if fi.empty:
@@ -47,6 +49,8 @@ def print_top_features(model, feature_names, label, top_n=10):
 
 
 def save_feature_importance_plot(model, feature_names, title, out_path, top_n=15):
+    """Save a feature-importance bar chart."""
+
     fi = _safe_feature_importances(model, feature_names)
 
     if fi.empty:
@@ -67,6 +71,8 @@ def save_feature_importance_plot(model, feature_names, title, out_path, top_n=15
 
 
 def save_confusion_matrix_plot(y_true, y_pred, title, out_path):
+    """Save a classification confusion-matrix plot."""
+
     cm = confusion_matrix(y_true, y_pred)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm)
 
@@ -79,6 +85,8 @@ def save_confusion_matrix_plot(y_true, y_pred, title, out_path):
 
 
 def save_roc_curve_plot(y_true, y_prob, title, out_path):
+    """Save a classification ROC curve plot."""
+
     fpr, tpr, _ = roc_curve(y_true, y_prob)
     roc_auc = auc(fpr, tpr)
 
@@ -95,6 +103,8 @@ def save_roc_curve_plot(y_true, y_prob, title, out_path):
 
 
 def save_precision_recall_curve_plot(y_true, y_prob, title, out_path):
+    """Save a classification precision-recall curve plot."""
+
     precision, recall, _ = precision_recall_curve(y_true, y_prob)
     ap = average_precision_score(y_true, y_prob)
 
@@ -110,6 +120,8 @@ def save_precision_recall_curve_plot(y_true, y_prob, title, out_path):
 
 
 def save_actual_vs_predicted_plot(y_true, y_pred, title, out_path):
+    """Save a regression actual-vs-predicted scatter plot."""
+
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
 
@@ -127,6 +139,8 @@ def save_actual_vs_predicted_plot(y_true, y_pred, title, out_path):
 
 
 def save_residuals_vs_predicted_plot(y_true, y_pred, title, out_path):
+    """Save a regression residuals-vs-predicted plot."""
+
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
     residuals = y_true - y_pred
@@ -143,6 +157,8 @@ def save_residuals_vs_predicted_plot(y_true, y_pred, title, out_path):
 
 
 def save_residual_histogram_plot(y_true, y_pred, title, out_path, bins=30):
+    """Save a regression residual histogram."""
+
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
     residuals = y_true - y_pred
@@ -159,16 +175,12 @@ def save_residual_histogram_plot(y_true, y_pred, title, out_path, bins=30):
 
 
 def save_multilabel_dashboards(model, splits, output_dir, top_n_features=15):
-    """
-    Saves all useful plots for each label/head using the model's current test splits.
+    """Save classification and regression plots for each label.
 
-    Expected model interface:
-      - model.models[label_name]["pipeline"]
-      - splits[label_name]
-      - split has X_test_class, X_test_reg, y_test_class, y_test_reg
-      - pipeline.predict_df(X, prefix=label_name)
-      - pipeline.head1 / pipeline.head2
+    Args:
+        output_dir: Directory where plot files are written.
     """
+
     output_dir = Path(output_dir)
     _ensure_dir(output_dir)
 

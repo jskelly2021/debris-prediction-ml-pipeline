@@ -12,6 +12,13 @@ log = Log()
 
 @dataclass
 class Splits:
+    """Store classification and regression train/val/test splits.
+
+    Attributes:
+        X_train_class: Feature matrix for classifier training.
+        X_train_reg: Feature matrix for regressor training.
+    """
+
     X_train_class: pd.DataFrame
     X_val_class: pd.DataFrame
     X_test_class: pd.DataFrame
@@ -28,6 +35,8 @@ class Splits:
 
 
 def _remove_outliers(X, y, outlier_threshold):
+    """Filter regression rows above the configured target threshold."""
+
     if outlier_threshold is None:
         return X, y
 
@@ -39,11 +48,15 @@ def _remove_outliers(X, y, outlier_threshold):
 
 
 def _filter_positive_regression_rows(X, y_reg, y_class):
+    """Keep only rows with positive class labels for regression."""
+
     mask = y_class == 1
     return X.loc[mask], y_reg.loc[mask]
 
 
 def _get_train_val_test_splits(X, y_class, y_reg, holdout_size=0.2, random_state=12) -> Splits:
+    """Create shared train/validation/test indices for all targets."""
+
     train_idx, temp_idx = train_test_split(
         X.index,
         test_size=holdout_size,
@@ -86,6 +99,12 @@ def make_label_specific_splits(
     holdout_size=0.2,
     random_state=12
 ) -> dict[str, Splits]:
+    """Create one split container per configured label.
+
+    Args:
+        X: Feature DataFrame.
+    """
+
     log.info("Creating train/val/test splits...")
 
     base = _get_train_val_test_splits(
