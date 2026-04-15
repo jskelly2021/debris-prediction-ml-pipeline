@@ -49,7 +49,7 @@ class MultiLabelModel:
             log.h1(f"Training model for label: {label_name}")
 
             pipeline = TwoHeadPipeline(
-                pipelineConfig=self.pipeline_config
+                pipeline_config=self.pipeline_config
             )
 
             pipeline.train(

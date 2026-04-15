@@ -121,6 +121,38 @@ def _path_or_none(value) -> Path | None:
     return Path(value)
 
 
+def _select_param_section(param_dict: dict, section: str | None) -> dict:
+    """Select a model-specific param section when a shared param file is used."""
+
+    if section is not None and section in param_dict:
+        section_dict = param_dict[section] or {}
+        if not isinstance(section_dict, dict):
+            raise ValueError(f"Parameter section must contain a mapping: {section}")
+        return section_dict
+
+    return param_dict
+
+
+def load_param_set(path: Path | None, section: str | None = None) -> ParamSet:
+    """Load model defaults and search space from a parameter YAML file."""
+
+    if path is None:
+        return ParamSet()
+
+    with Path(path).open("r") as file:
+        param_dict = yaml.safe_load(file) or {}
+
+    if not isinstance(param_dict, dict):
+        raise ValueError(f"Parameter file must contain a mapping: {path}")
+
+    param_dict = _select_param_section(param_dict, section)
+
+    return ParamSet(
+        default_params=param_dict.get("default_params", {}) or {},
+        params_dist=param_dict.get("params_dist", {}) or {},
+    )
+
+
 def _nested_config_dict(config_dict: dict) -> dict:
     """Return a nested config dict, with temporary support for legacy flat YAML."""
 
@@ -176,6 +208,8 @@ def build_pipeline_config(experiment_config: ExperimentConfig) -> PipelineConfig
         scale_pos_weight=experiment_config.training.scale_pos_weight,
         log_target_reg=experiment_config.training.log_target_reg,
         positive_only_regression=experiment_config.training.positive_only_regression,
+        class_param_set=load_param_set(experiment_config.models.classifier_params_path, section="classifier"),
+        reg_param_set=load_param_set(experiment_config.models.regressor_params_path, section="regressor"),
     )
 
 

@@ -55,5 +55,5 @@ training:
 models:
   classifier_model: xgboost
   regressor_model: xgboost
-  classifier_params_path: null
-  regressor_params_path: null
+  classifier_params_path: params/xgboost.yaml
+  regressor_params_path: params/xgboost.yaml

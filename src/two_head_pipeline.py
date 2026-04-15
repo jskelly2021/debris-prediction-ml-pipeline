@@ -11,6 +11,7 @@ from classifier import train_classifier
 from resampling import apply_smote_single_label
 from categorical_preprocessing import CategoricalPreprocessor
 from feature_filter import FeatureFilter
+from config import PipelineConfig
 from dataclasses import dataclass
 from logger import Log
 
@@ -38,22 +39,22 @@ class TwoHeadPipeline:
 
     def __init__(
         self,
-        pipelineConfig,
+        pipeline_config: PipelineConfig,
     ):
-        self.class_param_dist = pipelineConfig.class_param_set.params_dist
-        self.reg_param_dist = pipelineConfig.reg_param_set.params_dist
-        self.class_default_params = pipelineConfig.class_param_set.default_params
-        self.reg_default_params = pipelineConfig.reg_param_set.default_params
-        self.apply_smote = pipelineConfig.smote
-        self.apply_scale_pos_weight = pipelineConfig.scale_pos_weight
-        self.log_regression_target = pipelineConfig.log_target_reg
-        self.positive_only_regression = pipelineConfig.positive_only_regression
-        self.categorical_cols = pipelineConfig.categorical_cols
-        self.categorical_encoding = pipelineConfig.categorical_encoding
-        self.target_encoding_smoothing = pipelineConfig.target_encoding_smoothing
-        self.feature_filtering = pipelineConfig.feature_filtering or {}
-        self.classifier_model = pipelineConfig.classifier_model
-        self.regressor_model = pipelineConfig.regressor_model
+        self.class_param_dist = pipeline_config.class_param_set.params_dist
+        self.reg_param_dist = pipeline_config.reg_param_set.params_dist
+        self.class_default_params = pipeline_config.class_param_set.default_params
+        self.reg_default_params = pipeline_config.reg_param_set.default_params
+        self.apply_smote = pipeline_config.smote
+        self.apply_scale_pos_weight = pipeline_config.scale_pos_weight
+        self.log_regression_target = pipeline_config.log_target_reg
+        self.positive_only_regression = pipeline_config.positive_only_regression
+        self.categorical_cols = pipeline_config.categorical_cols
+        self.categorical_encoding = pipeline_config.categorical_encoding
+        self.target_encoding_smoothing = pipeline_config.target_encoding_smoothing
+        self.feature_filtering = pipeline_config.feature_filtering or {}
+        self.classifier_model = pipeline_config.classifier_model
+        self.regressor_model = pipeline_config.regressor_model
         self.threshold = 0.5
         self.best_f1 = None
         self.head1 = self.__build_classifier()
