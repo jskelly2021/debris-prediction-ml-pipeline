@@ -6,7 +6,7 @@ from config import build_pipeline_config, load_config
 from evaluation import evaluate_multilabel_model
 from preprocess import load_and_preprocess_data
 from split import make_label_specific_splits
-from tune_mode import TuneMode
+from tune_mode import parse_tune_mode
 from multi_label_model import MultiLabelModel
 from plots import save_multilabel_dashboards
 from results import (
@@ -56,8 +56,8 @@ def main():
 
     model.fit(
         splits=splits,
-        class_tune_mode=TuneMode.NONE,
-        reg_tune_mode=TuneMode.NONE
+        class_tune_mode=parse_tune_mode(config.training.class_tune_mode),
+        reg_tune_mode=parse_tune_mode(config.training.reg_tune_mode)
     )
 
     metrics = evaluate_multilabel_model(model, splits)

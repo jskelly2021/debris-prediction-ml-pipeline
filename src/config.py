@@ -52,6 +52,8 @@ class TrainingConfig:
     scale_pos_weight: bool = False
     log_target_reg: bool = False
     positive_only_regression: bool = False
+    class_tune_mode: str = "none"
+    reg_tune_mode: str = "none"
 
 
 @dataclass
@@ -184,6 +186,8 @@ def _nested_config_dict(config_dict: dict) -> dict:
             "scale_pos_weight": config_dict.get("scale_pos_weight", False),
             "log_target_reg": config_dict.get("log_target_reg", False),
             "positive_only_regression": config_dict.get("positive_only_regression", False),
+            "class_tune_mode": config_dict.get("class_tune_mode", "none"),
+            "reg_tune_mode": config_dict.get("reg_tune_mode", "none"),
         },
         "models": {
             "classifier_model": config_dict.get("classifier_model", "xgboost"),
