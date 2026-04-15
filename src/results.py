@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import TrainConfig
+from config import ExperimentConfig
 from logger import Log
 from plots import print_top_features
 from split import Splits
@@ -48,7 +48,7 @@ def print_metrics(metrics):
         log.body(f"R²       : {regression.r2}")
 
 
-def metrics_to_dataframe(metrics, train_config: TrainConfig, run_id=None, n_features=None):
+def metrics_to_dataframe(metrics, experiment_config: ExperimentConfig, run_id=None, n_features=None):
     """Convert label metrics to a run-summary DataFrame."""
 
     if metrics is None:
@@ -69,11 +69,11 @@ def metrics_to_dataframe(metrics, train_config: TrainConfig, run_id=None, n_feat
             "reg_target": label_metrics.reg_col,
             "n_features": label_n_features,
 
-            "smote": train_config.smote,
-            "scale_pos_weight": train_config.scale_pos_weight,
-            "log_features": train_config.log_features,
-            "log_target_reg": train_config.log_target_reg,
-            "outlier_threshold": train_config.outlier_threshold,
+            "smote": experiment_config.training.smote,
+            "scale_pos_weight": experiment_config.training.scale_pos_weight,
+            "log_features": experiment_config.preprocessing.log_features,
+            "log_target_reg": experiment_config.training.log_target_reg,
+            "outlier_threshold": experiment_config.training.outlier_threshold,
 
             "positive_rate": c.positive_rate,
             "class_n_samples": c.n_samples,
@@ -93,7 +93,7 @@ def metrics_to_dataframe(metrics, train_config: TrainConfig, run_id=None, n_feat
     return pd.DataFrame(rows)
 
 
-def save_metrics_outputs(metrics, splits, train_config: TrainConfig, output_path, run_id):
+def save_metrics_outputs(metrics, splits, experiment_config: ExperimentConfig, output_path, run_id):
     """Save aggregate and per-label metric CSV outputs."""
 
     output_path = Path(output_path)
@@ -106,7 +106,7 @@ def save_metrics_outputs(metrics, splits, train_config: TrainConfig, output_path
 
     metrics_df = metrics_to_dataframe(
         metrics=metrics,
-        train_config=train_config,
+        experiment_config=experiment_config,
         run_id=run_id,
         n_features=n_features,
     )

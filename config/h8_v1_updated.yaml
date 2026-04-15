@@ -1,0 +1,59 @@
+data:
+  data_path: data/h8_debrisv1_2.csv
+  output_path: outputs/h8_01
+  drop_cols: [
+    # Repetitive/Identifier Features
+    GRID_ID,
+    num_story_med,  num_story_sum,
+    sqft_med,       sqft_sum,
+    found_ht_med,   found_ht_sum,
+    val_struct_med, val_struct_sum,
+    val_cont_med,   val_cont_sum,
+    age_med,
+
+    # Targets
+    VolCD,     VolVG,
+    VolCD_sum, VolVG_sum, VolBoth_sum,
+    Bin_CD,    Bin_VG,    Bin_Both,
+
+    # Variable Drop Features
+    fld_pct, bldgS, slope, occtype_COM, landcover,
+  ]
+
+labels:
+  label_names:       [BT]
+  class_target_cols: [Bin_Both]
+  reg_target_cols:   [VolBoth_sum]
+
+preprocessing:
+  categorical_cols:  [fld_zone, landcover, landuse, evac_degree]
+
+  categorical_encoding:
+    default: onehot
+    overrides:
+      landuse: target
+      fld_zone: target
+      evac_degree: target
+
+  feature_filtering:
+    enabled: true
+    drop_constant: true
+    min_binary_positive_count: 30
+    max_dominant_value_fraction: 0.7
+
+  feature_cols_to_log: [sqft, val_struct, val_cont]
+  log_features: true
+  target_encoding_smoothing: 20.0
+
+training:
+  outlier_threshold: null
+  smote: true
+  scale_pos_weight: false
+  log_target_reg: false
+  positive_only_regression: true
+
+models:
+  classifier_model: xgboost
+  regressor_model: xgboost
+  classifier_params_path: null
+  regressor_params_path: null

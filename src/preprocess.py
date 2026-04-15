@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 from logger import Log
-from config import TrainConfig
+from config import ExperimentConfig
 
 
 log = Log()
@@ -82,25 +82,25 @@ def _load_data(data_path):
     return df
 
 
-def load_and_preprocess_data(config: TrainConfig):
-    """Load and preprocess data using the training config.
+def load_and_preprocess_data(config: ExperimentConfig):
+    """Load and preprocess data using the experiment config.
 
     Returns:
         Feature DataFrame, classification targets, and regression targets.
     """
 
-    df = _load_data(config.data_path)
+    df = _load_data(config.data.data_path)
 
     log.info("Preprocessing data...")
 
     X, y_class, y_reg = _preprocess_data(
         df,
-        class_target_cols=config.class_target_cols,
-        reg_target_cols=config.reg_target_cols,
-        drop_cols=config.drop_cols,
-        categorical_cols=config.categorical_cols,
-        log_features=config.log_features,
-        feature_cols_to_log=config.feature_cols_to_log
+        class_target_cols=config.labels.class_target_cols,
+        reg_target_cols=config.labels.reg_target_cols,
+        drop_cols=config.data.drop_cols,
+        categorical_cols=config.preprocessing.categorical_cols,
+        log_features=config.preprocessing.log_features,
+        feature_cols_to_log=config.preprocessing.feature_cols_to_log
     )
 
     log.info(f"Preprocessing complete\n")

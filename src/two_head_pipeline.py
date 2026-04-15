@@ -40,10 +40,10 @@ class TwoHeadPipeline:
         self,
         pipelineConfig,
     ):
-        self.class_param_dist = pipelineConfig.class_params_dist
-        self.reg_param_dist = pipelineConfig.reg_params_dist
-        self.class_default_params = pipelineConfig.class_default_params or {}
-        self.reg_default_params = pipelineConfig.reg_default_params or {}
+        self.class_param_dist = pipelineConfig.class_param_set.params_dist
+        self.reg_param_dist = pipelineConfig.reg_param_set.params_dist
+        self.class_default_params = pipelineConfig.class_param_set.default_params
+        self.reg_default_params = pipelineConfig.reg_param_set.default_params
         self.apply_smote = pipelineConfig.smote
         self.apply_scale_pos_weight = pipelineConfig.scale_pos_weight
         self.log_regression_target = pipelineConfig.log_target_reg

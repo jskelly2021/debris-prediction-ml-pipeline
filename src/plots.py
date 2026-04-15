@@ -240,7 +240,7 @@ def save_multilabel_dashboards(model, splits, output_dir, top_n_features=15):
         reg_pred_df = pipeline.predict_df(split.X_test_reg, prefix=label_name)
 
         y_true_reg = split.y_test_reg
-        if model.train_config.positive_only_regression:
+        if model.pipeline_config.positive_only_regression:
             y_pred_reg = reg_pred_df[f"{label_name}_reg_pred"]
             reg_title = f"{label_name} Actual vs Conditional Volume Predicted"
         else:

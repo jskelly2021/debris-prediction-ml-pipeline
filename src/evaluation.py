@@ -47,7 +47,7 @@ def evaluate_multilabel_model(model, splits):
             prefix=label_name
         )
 
-        if model.train_config.positive_only_regression:
+        if model.pipeline_config.positive_only_regression:
             regression_display_name = "Conditional Volume"
             regression_prediction_column = f"{label_name}_reg_pred"
         else:

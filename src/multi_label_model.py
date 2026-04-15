@@ -2,7 +2,7 @@
 import pandas as pd
 
 from two_head_pipeline import TuneMode, TwoHeadPipeline
-from config import TrainConfig
+from config import LabelSpec, PipelineConfig
 from split import Splits
 from logger import Log
 
@@ -20,9 +20,11 @@ class MultiLabelModel:
 
     def __init__(
         self,
-        train_config: TrainConfig,
+        label_specs: list[LabelSpec],
+        pipeline_config: PipelineConfig,
     ):
-        self.train_config = train_config
+        self.label_specs = label_specs
+        self.pipeline_config = pipeline_config
         self.models = {}
         self.is_fitted = False
 
@@ -39,7 +41,7 @@ class MultiLabelModel:
             splits: Label-specific train/validation/test split mapping.
         """
 
-        for label_spec in self.train_config.label_specs:
+        for label_spec in self.label_specs:
             label_name = label_spec.label_name
             class_col = label_spec.class_target_col
             reg_col = label_spec.reg_target_col
@@ -47,7 +49,7 @@ class MultiLabelModel:
             log.h1(f"Training model for label: {label_name}")
 
             pipeline = TwoHeadPipeline(
-                pipelineConfig=self.train_config
+                pipelineConfig=self.pipeline_config
             )
 
             pipeline.train(

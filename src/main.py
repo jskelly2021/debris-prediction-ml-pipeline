@@ -2,7 +2,7 @@
 import argparse
 
 from logger import setup_logger
-from config import load_config
+from config import build_pipeline_config, load_config
 from evaluation import evaluate_multilabel_model
 from preprocess import load_and_preprocess_data
 from split import make_label_specific_splits
@@ -36,6 +36,7 @@ def main():
     setup_logger()
     args = parse_args()
     config = load_config(args.config_path)
+    pipeline_config = build_pipeline_config(config)
 
     X, y_class, y_reg = load_and_preprocess_data(config)
 
@@ -43,13 +44,14 @@ def main():
         X=X,
         y_class=y_class,
         y_reg=y_reg,
-        label_specs=config.label_specs,
-        outlier_threshold=config.outlier_threshold,
-        positive_only_regression=config.positive_only_regression,
+        label_specs=config.labels.label_specs,
+        outlier_threshold=config.training.outlier_threshold,
+        positive_only_regression=config.training.positive_only_regression,
     )
 
     model = MultiLabelModel(
-        train_config=config,
+        label_specs=config.labels.label_specs,
+        pipeline_config=pipeline_config,
     )
 
     model.fit(
@@ -67,8 +69,8 @@ def main():
         save_metrics_outputs(
             metrics=metrics,
             splits=splits,
-            train_config=config,
-            output_path=config.output_path,
+            experiment_config=config,
+            output_path=config.data.output_path,
             run_id=args.run_id,
         )
 
@@ -76,16 +78,16 @@ def main():
         save_feature_importance_outputs(
             model=model,
             splits=splits,
-            output_path=config.output_path,
+            output_path=config.data.output_path,
             top_k=10,
         )
 
     if args.plots:
-        config.output_path.mkdir(parents=True, exist_ok=True)
+        config.data.output_path.mkdir(parents=True, exist_ok=True)
         save_multilabel_dashboards(
             model=model,
             splits=splits,
-            output_dir=config.output_path / "plots",
+            output_dir=config.data.output_path / "plots",
             top_n_features=15
         )
 
