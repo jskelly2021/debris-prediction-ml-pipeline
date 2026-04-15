@@ -149,7 +149,7 @@ def load_param_set(path: Path | None, section: str | None = None) -> ParamSet:
 
     return ParamSet(
         default_params=param_dict.get("default_params", {}) or {},
-        params_dist=param_dict.get("params_dist", {}) or {},
+        params_dist=param_dict.get("params_dist", param_dict.get("param_dist", {})) or {},
     )
 
 

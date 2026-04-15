@@ -1,0 +1,21 @@
+classifier:
+  default_params:
+    n_estimators: 100
+    learning_rate: 1.0
+    random_state: 12
+
+  params_dist:
+    n_estimators: [50, 100, 300, 500]
+    learning_rate: [0.01, 0.1, 0.5, 1.0]
+
+regressor:
+  default_params:
+    n_estimators: 100
+    learning_rate: 1.0
+    loss: linear
+    random_state: 12
+
+  params_dist:
+    n_estimators: [50, 100, 300, 500]
+    learning_rate: [0.01, 0.1, 0.5, 1.0]
+    loss: [linear, square, exponential]

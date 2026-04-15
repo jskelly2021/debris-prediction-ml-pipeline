@@ -2,7 +2,16 @@
 import numpy as np
 import pandas as pd
 
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.ensemble import (
+    AdaBoostClassifier,
+    AdaBoostRegressor,
+    ExtraTreesClassifier,
+    ExtraTreesRegressor,
+    GradientBoostingClassifier,
+    GradientBoostingRegressor,
+    RandomForestClassifier,
+    RandomForestRegressor,
+)
 from xgboost import XGBClassifier, XGBRegressor
 from tune_mode import TuneMode
 from split import Splits
@@ -83,6 +92,22 @@ class TwoHeadPipeline:
                 random_state=12,
             )
 
+        if self.classifier_model == "extra_trees":
+            return ExtraTreesClassifier(
+                n_jobs=-1,
+                random_state=12,
+            )
+
+        if self.classifier_model == "gradient_boosting":
+            return GradientBoostingClassifier(
+                random_state=12,
+            )
+
+        if self.classifier_model == "adaboost":
+            return AdaBoostClassifier(
+                random_state=12,
+            )
+
         raise ValueError(f"Unsupported classifier model: {self.classifier_model}")
 
 
@@ -97,6 +122,22 @@ class TwoHeadPipeline:
         if self.regressor_model == "random_forest":
             return RandomForestRegressor(
                 n_jobs=-1,
+                random_state=12,
+            )
+
+        if self.regressor_model == "extra_trees":
+            return ExtraTreesRegressor(
+                n_jobs=-1,
+                random_state=12,
+            )
+
+        if self.regressor_model == "gradient_boosting":
+            return GradientBoostingRegressor(
+                random_state=12,
+            )
+
+        if self.regressor_model == "adaboost":
+            return AdaBoostRegressor(
                 random_state=12,
             )
 
