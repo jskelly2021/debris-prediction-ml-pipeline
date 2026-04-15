@@ -3,8 +3,8 @@
 data_path: data/h8_debrisv1_2.csv
 output_path: outputs/h8_v1
 
-classifier_model: xgboost
-regressor_model: xgboost
+classifier_model: random_forest
+regressor_model: random_forest
 
 label_names:
   - BT

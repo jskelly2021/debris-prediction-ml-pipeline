@@ -32,6 +32,18 @@ def apply_log_transform(y_train_reg, y_val_reg):
     return y_train_reg, y_val_reg
 
 
+def _fit_regressor_estimator(estimator, X_train, y_train, X_val, y_val):
+    if estimator.__class__.__module__.startswith("xgboost"):
+        estimator.fit(
+            X_train,
+            y_train,
+            eval_set=[(X_val, y_val)],
+            verbose=False
+        )
+    else:
+        estimator.fit(X_train, y_train)
+
+
 def train_regressor(
     estimator,
     splits: Splits,
@@ -95,11 +107,12 @@ def train_regressor(
 
     elif tune_mode == TuneMode.NONE:
         estimator.set_params(**default_params)
-        estimator.fit(
+        _fit_regressor_estimator(
+            estimator,
             X_train_reg,
             y_train_reg,
-            eval_set=[(X_val_reg, y_val_reg)],
-            verbose=False
+            X_val_reg,
+            y_val_reg
         )
 
     end = time.perf_counter()

@@ -47,8 +47,8 @@ def tune_threshold(y_true, y_prob):
     return best_threshold, best_f1
 
 
-def scale_pos_weight(estimator, y_train_cls):
-    """Set XGBoost positive-class weighting from binary targets."""
+def apply_class_imbalance_setting(estimator, y_train_cls):
+    """Set a class imbalance parameter when the estimator supports one."""
 
     neg_count = (y_train_cls == 0).sum()
     pos_count = (y_train_cls == 1).sum()
@@ -58,8 +58,26 @@ def scale_pos_weight(estimator, y_train_cls):
     else:
         scale_pos_weight = 1.0
 
-    estimator.set_params(scale_pos_weight=scale_pos_weight)
-    log.info(f"Applied scale_pos_weight={scale_pos_weight:.2f} to classifier.")
+    if estimator.__class__.__module__.startswith("xgboost"):
+        estimator.set_params(scale_pos_weight=scale_pos_weight)
+        log.info(f"Applied scale_pos_weight={scale_pos_weight:.2f} to classifier.")
+    elif hasattr(estimator, "get_params") and "class_weight" in estimator.get_params():
+        estimator.set_params(class_weight="balanced")
+        log.info("Applied class_weight='balanced' to classifier.")
+    else:
+        log.info("No classifier imbalance parameter applied.")
+
+
+def _fit_classifier_estimator(estimator, X_train, y_train, X_val, y_val):
+    if estimator.__class__.__module__.startswith("xgboost"):
+        estimator.fit(
+            X_train,
+            y_train,
+            eval_set=[(X_val, y_val)],
+            verbose=False
+        )
+    else:
+        estimator.fit(X_train, y_train)
 
 
 def train_classifier(
@@ -86,7 +104,7 @@ def train_classifier(
         estimator.set_params(**default_params)
 
     if apply_scale_pos_weight:
-        scale_pos_weight(estimator, y_train_cls)
+        apply_class_imbalance_setting(estimator, y_train_cls)
 
     start = time.perf_counter()
 
@@ -119,11 +137,12 @@ def train_classifier(
         log.info(f"Best classifier params: {search.best_params_}")
 
     elif tune_mode == TuneMode.NONE:
-        estimator.fit(
+        _fit_classifier_estimator(
+            estimator,
             X_train_cls,
             y_train_cls,
-            eval_set=[(splits.X_val_class, splits.y_val_class)],
-            verbose=False
+            splits.X_val_class,
+            splits.y_val_class
         )
 
     end = time.perf_counter()

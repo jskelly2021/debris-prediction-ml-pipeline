@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from xgboost import XGBClassifier, XGBRegressor
 from tune_mode import TuneMode
 from split import Splits
@@ -51,6 +52,8 @@ class TwoHeadPipeline:
         self.categorical_encoding = pipelineConfig.categorical_encoding
         self.target_encoding_smoothing = pipelineConfig.target_encoding_smoothing
         self.feature_filtering = pipelineConfig.feature_filtering or {}
+        self.classifier_model = pipelineConfig.classifier_model
+        self.regressor_model = pipelineConfig.regressor_model
         self.threshold = 0.5
         self.best_f1 = None
         self.head1 = self.__build_classifier()
@@ -65,20 +68,38 @@ class TwoHeadPipeline:
 
 
     def __build_classifier(self):
-        return XGBClassifier(
-            objective="binary:logistic",
-            eval_metric="auc",
-            tree_method="hist",
-            n_jobs=-1,
-        )
+        if self.classifier_model == "xgboost":
+            return XGBClassifier(
+                objective="binary:logistic",
+                eval_metric="auc",
+                tree_method="hist",
+                n_jobs=-1,
+            )
+
+        if self.classifier_model == "random_forest":
+            return RandomForestClassifier(
+                n_jobs=-1,
+                random_state=12,
+            )
+
+        raise ValueError(f"Unsupported classifier model: {self.classifier_model}")
 
 
     def __build_regressor(self):
-        return XGBRegressor(
-            objective="reg:squarederror",
-            tree_method="hist",
-            n_jobs=-1,
-        )
+        if self.regressor_model == "xgboost":
+            return XGBRegressor(
+                objective="reg:squarederror",
+                tree_method="hist",
+                n_jobs=-1,
+            )
+
+        if self.regressor_model == "random_forest":
+            return RandomForestRegressor(
+                n_jobs=-1,
+                random_state=12,
+            )
+
+        raise ValueError(f"Unsupported regressor model: {self.regressor_model}")
 
 
     def train(
