@@ -33,6 +33,8 @@ class TrainConfig:
     feature_filtering: dict = field(default_factory=dict)
     feature_cols_to_log: list[str] = field(default_factory=list)
     label_names: list[str] = field(default_factory=list)
+    classifier_model: str = "xgboost"
+    regressor_model: str = "xgboost"
 
     outlier_threshold: float = None
     smote: bool = False

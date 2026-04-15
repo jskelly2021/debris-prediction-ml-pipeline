@@ -54,8 +54,8 @@ def main():
 
     model.fit(
         splits=splits,
-        class_tune_mode=TuneMode.NONE,
-        reg_tune_mode=TuneMode.NONE
+        class_tune_mode=TuneMode.RANDOM_SEARCH,
+        reg_tune_mode=TuneMode.RANDOM_SEARCH
     )
 
     metrics = evaluate_multilabel_model(model, splits)

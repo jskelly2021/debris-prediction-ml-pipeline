@@ -72,7 +72,7 @@ def train_regressor(
             param_distributions=param_dist,
             n_iter=20,
             scoring="neg_mean_squared_error",
-            cv=3,
+            cv=5,
             n_jobs=-1,
             random_state=12
         )
@@ -86,7 +86,7 @@ def train_regressor(
             estimator=estimator,
             param_grid=param_dist,
             scoring="neg_mean_squared_error",
-            cv=3,
+            cv=5,
             n_jobs=-1
         )
         search.fit(X_train_reg, y_train_reg)
