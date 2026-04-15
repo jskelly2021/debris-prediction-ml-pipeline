@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from copy import deepcopy
 from pathlib import Path
 
 import yaml
@@ -217,19 +218,10 @@ def build_pipeline_config(experiment_config: ExperimentConfig) -> PipelineConfig
     )
 
 
-def load_config(config_path: str) -> ExperimentConfig:
-    """Load a YAML experiment config.
+def config_from_dict(config_dict: dict) -> ExperimentConfig:
+    """Build an experiment config from a plain dictionary."""
 
-    Args:
-        config_path: Path to a YAML config file.
-    """
-
-    config_path = Path(config_path)
-
-    with config_path.open("r") as file:
-        config_dict = yaml.safe_load(file) or {}
-
-    config_dict = _nested_config_dict(config_dict)
+    config_dict = _nested_config_dict(deepcopy(config_dict))
 
     data_dict = config_dict.get("data", {})
     data_dict["data_path"] = Path(data_dict["data_path"])
@@ -246,3 +238,18 @@ def load_config(config_path: str) -> ExperimentConfig:
         training=TrainingConfig(**config_dict.get("training", {})),
         models=ModelSelectionConfig(**models_dict),
     )
+
+
+def load_config(config_path: str) -> ExperimentConfig:
+    """Load a YAML experiment config.
+
+    Args:
+        config_path: Path to a YAML config file.
+    """
+
+    config_path = Path(config_path)
+
+    with config_path.open("r") as file:
+        config_dict = yaml.safe_load(file) or {}
+
+    return config_from_dict(config_dict)

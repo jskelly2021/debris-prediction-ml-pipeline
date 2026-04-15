@@ -12,6 +12,7 @@ from plots import save_multilabel_dashboards
 from results import (
     print_feature_importance,
     print_metrics,
+    metrics_to_dataframe,
     save_feature_importance_outputs,
     save_metrics_outputs,
 )
@@ -30,12 +31,15 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
-    """Run the configured training, evaluation, and optional exports."""
+def run_experiment(
+    config,
+    run_id="default_run",
+    save=False,
+    plots=False,
+    feature_importance=False,
+):
+    """Run one configured experiment and return structured metric rows."""
 
-    setup_logger()
-    args = parse_args()
-    config = load_config(args.config_path)
     pipeline_config = build_pipeline_config(config)
 
     X, y_class, y_reg = load_and_preprocess_data(config)
@@ -65,16 +69,27 @@ def main():
     print_feature_importance(model=model, splits=splits, top_n=5)
     print_metrics(metrics)
 
-    if args.save:
+    n_features = {
+        label_name: splits[label_name].X_test_class.shape[1]
+        for label_name in metrics
+    }
+    metrics_df = metrics_to_dataframe(
+        metrics=metrics,
+        experiment_config=config,
+        run_id=run_id,
+        n_features=n_features,
+    )
+
+    if save:
         save_metrics_outputs(
             metrics=metrics,
             splits=splits,
             experiment_config=config,
             output_path=config.data.output_path,
-            run_id=args.run_id,
+            run_id=run_id,
         )
 
-    if args.feature_importance:
+    if feature_importance:
         save_feature_importance_outputs(
             model=model,
             splits=splits,
@@ -82,7 +97,7 @@ def main():
             top_k=10,
         )
 
-    if args.plots:
+    if plots:
         config.data.output_path.mkdir(parents=True, exist_ok=True)
         save_multilabel_dashboards(
             model=model,
@@ -90,6 +105,23 @@ def main():
             output_dir=config.data.output_path / "plots",
             top_n_features=15
         )
+
+    return metrics_df
+
+
+def main():
+    """Run the configured training, evaluation, and optional exports."""
+
+    setup_logger()
+    args = parse_args()
+    config = load_config(args.config_path)
+    run_experiment(
+        config=config,
+        run_id=args.run_id,
+        save=args.save,
+        plots=args.plots,
+        feature_importance=args.feature_importance,
+    )
 
 
 if __name__ == "__main__":

@@ -74,6 +74,8 @@ def metrics_to_dataframe(metrics, experiment_config: ExperimentConfig, run_id=No
             "log_features": experiment_config.preprocessing.log_features,
             "log_target_reg": experiment_config.training.log_target_reg,
             "outlier_threshold": experiment_config.training.outlier_threshold,
+            "classifier_model": experiment_config.models.classifier_model,
+            "regressor_model": experiment_config.models.regressor_model,
 
             "positive_rate": c.positive_rate,
             "class_n_samples": c.n_samples,
@@ -88,6 +90,8 @@ def metrics_to_dataframe(metrics, experiment_config: ExperimentConfig, run_id=No
             "rmse": r.rmse,
             "mae": r.mae,
             "r2": r.r2,
+            "status": "success",
+            "error_message": None,
         })
 
     return pd.DataFrame(rows)

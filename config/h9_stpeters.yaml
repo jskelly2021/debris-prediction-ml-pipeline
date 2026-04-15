@@ -1,6 +1,6 @@
 data:
-  data_path: data/h8_debrisv1_2.csv
-  output_path: outputs/h8_01
+  data_path: data/H9_StPetersberg_only_2.csv
+  output_path: outputs/h9_stpeters
   drop_cols: [
     # Repetitive/Identifier Features
     GRID_ID,
@@ -54,33 +54,8 @@ training:
   class_tune_mode: random_search
   reg_tune_mode: random_search
 
-# models:
-#   classifier_model: xgboost
-#   regressor_model: xgboost
-#   classifier_params_path: params/xgboost.yaml
-#   regressor_params_path: params/xgboost.yaml
-
 models:
-  classifier_model: adaboost
-  regressor_model: adaboost
-  classifier_params_path: params/adaboost.yaml
-  regressor_params_path: params/adaboost.yaml
-
-# models:
-#   classifier_model: random_forest
-#   regressor_model: random_forest
-#   classifier_params_path: params/random_forest.yaml
-#   regressor_params_path: params/random_forest.yaml
-
-# models:
-#   classifier_model: gradient_boosting
-#   regressor_model: gradient_boosting
-#   classifier_params_path: params/gradient_boosting.yaml
-#   regressor_params_path: params/gradient_boosting.yaml
-
-# models:
-#   classifier_model: extra_trees
-#   regressor_model: extra_trees
-#   classifier_params_path: params/extra_trees.yaml
-#   regressor_params_path: params/extra_trees.yaml
-
+  classifier_model: xgboost
+  regressor_model: xgboost
+  classifier_params_path: params/xgboost.yaml
+  regressor_params_path: params/xgboost.yaml

@@ -1,0 +1,31 @@
+batch_name: dataset_comparison
+base_config: config/h9_v4.yaml
+output_root: outputs/batches
+
+experiments:
+  - name: h9_v4
+    run_id: h9_v4
+    overrides:
+      data:
+        data_path: data/hex9_v4.csv
+      training:
+        smote: true
+        scale_pos_weight: false
+
+  - name: h8_v1
+    run_id: h8_v1
+    overrides:
+      data:
+        data_path: data/h8_debrisv1_2.csv
+      training:
+        smote: true
+        scale_pos_weight: false
+
+  - name: h9_stpeters
+    run_id: h9_stpeters
+    overrides:
+      data:
+        data_path: data/H9_StPetersberg_only_2.csv
+      training:
+        smote: true
+        scale_pos_weight: false
