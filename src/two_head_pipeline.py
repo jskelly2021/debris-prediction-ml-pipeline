@@ -9,6 +9,8 @@ from sklearn.ensemble import (
     ExtraTreesRegressor,
     GradientBoostingClassifier,
     GradientBoostingRegressor,
+    HistGradientBoostingClassifier,
+    HistGradientBoostingRegressor,
     RandomForestClassifier,
     RandomForestRegressor,
 )
@@ -108,6 +110,11 @@ class TwoHeadPipeline:
                 random_state=12,
             )
 
+        if self.classifier_model == "hist_gradient_boosting":
+            return HistGradientBoostingClassifier(
+                random_state=12,
+            )
+
         raise ValueError(f"Unsupported classifier model: {self.classifier_model}")
 
 
@@ -138,6 +145,11 @@ class TwoHeadPipeline:
 
         if self.regressor_model == "adaboost":
             return AdaBoostRegressor(
+                random_state=12,
+            )
+
+        if self.regressor_model == "hist_gradient_boosting":
+            return HistGradientBoostingRegressor(
                 random_state=12,
             )
 

@@ -11,6 +11,17 @@ from split import Splits
 log = Log()
 
 
+FEATURE_IMPORTANCE_COLUMNS = ["label", "head_type", "feature", "importance"]
+FEATURE_IMPORTANCE_SUMMARY_COLUMNS = [
+    "feature",
+    "mean_importance",
+    "median_importance",
+    "max_importance",
+    "nonzero_count",
+    "topk_count",
+]
+
+
 def append_df_to_csv(df: pd.DataFrame, path: Path):
     """Append a DataFrame to a CSV, creating it if needed."""
 
@@ -166,32 +177,42 @@ def feature_importance_to_dataframe(model, splits: dict[str, Splits]):
         class_feature_names = pipeline.class_feature_names_
         reg_feature_names = pipeline.reg_feature_names_ or pipeline.class_feature_names_
 
-        clf_importances = pipeline.head1.feature_importances_
-        for feature, importance in zip(class_feature_names, clf_importances):
-            rows.append({
-                "label": label_name,
-                "head_type": "classifier",
-                "feature": feature,
-                "importance": float(importance),
-            })
-
-        if pipeline.head2 is not None:
-            reg_importances = pipeline.head2.feature_importances_
-            for feature, importance in zip(reg_feature_names, reg_importances):
+        if hasattr(pipeline.head1, "feature_importances_"):
+            clf_importances = pipeline.head1.feature_importances_
+            for feature, importance in zip(class_feature_names, clf_importances):
                 rows.append({
                     "label": label_name,
-                    "head_type": "regressor",
+                    "head_type": "classifier",
                     "feature": feature,
                     "importance": float(importance),
                 })
+        else:
+            log.warn(f"Skipping feature importance export for {label_name} classifier: no importances available.")
 
-    return pd.DataFrame(rows)
+        if pipeline.head2 is not None:
+            if hasattr(pipeline.head2, "feature_importances_"):
+                reg_importances = pipeline.head2.feature_importances_
+                for feature, importance in zip(reg_feature_names, reg_importances):
+                    rows.append({
+                        "label": label_name,
+                        "head_type": "regressor",
+                        "feature": feature,
+                        "importance": float(importance),
+                    })
+            else:
+                log.warn(f"Skipping feature importance export for {label_name} regressor: no importances available.")
+
+    return pd.DataFrame(rows, columns=FEATURE_IMPORTANCE_COLUMNS)
 
 
 def feature_importance_rankings_to_dataframe(model, splits: dict[str, Splits]):
     """Add per-label/head ranks to feature importance values."""
 
     fi_df = feature_importance_to_dataframe(model=model, splits=splits).copy()
+
+    if fi_df.empty:
+        fi_df["rank_within_head"] = pd.Series(dtype="float64")
+        return fi_df
 
     fi_df["rank_within_head"] = (
         fi_df.groupby(["label", "head_type"])["importance"]
@@ -205,6 +226,10 @@ def summarize_feature_importance(fi_df, top_k=10):
     """Summarize feature importance across labels and heads."""
 
     fi_df = fi_df.copy()
+
+    if fi_df.empty:
+        summary = pd.DataFrame(columns=FEATURE_IMPORTANCE_SUMMARY_COLUMNS)
+        return fi_df, summary
 
     if "rank_within_head" not in fi_df.columns:
         fi_df["rank_within_head"] = (

@@ -51,6 +51,18 @@ experiments:
         classifier_params_path: params/gradient_boosting.yaml
         regressor_params_path: params/gradient_boosting.yaml
 
+  - name: hgb
+    run_id: hgb
+    overrides:
+      training:
+        smote: true
+        scale_pos_weight: false
+      models:
+        classifier_model: hist_gradient_boosting
+        regressor_model: hist_gradient_boosting
+        classifier_params_path: params/hist_gradient_boosting.yaml
+        regressor_params_path: params/hist_gradient_boosting.yaml
+
   - name: extree
     run_id: extree
     overrides:

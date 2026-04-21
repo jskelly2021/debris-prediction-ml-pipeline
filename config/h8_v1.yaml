@@ -21,9 +21,9 @@ data:
   ]
 
 labels:
-  label_names:       [BT]
-  class_target_cols: [Bin_Both]
-  reg_target_cols:   [VolBoth_sum]
+  label_names:       [CD, VG, BT]
+  class_target_cols: [Bin_CD, Bin_VG, Bin_Both]
+  reg_target_cols:   [VolCD_sum, VolVG_sum, VolBoth_sum]
 
 preprocessing:
   categorical_cols:  [fld_zone, landcover, landuse, evac_degree]
@@ -51,8 +51,8 @@ training:
   scale_pos_weight: false
   log_target_reg: false
   positive_only_regression: true
-  class_tune_mode: random_search
-  reg_tune_mode: random_search
+  class_tune_mode: none
+  reg_tune_mode: none
 
 models:
   classifier_model: xgboost

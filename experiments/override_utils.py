@@ -22,6 +22,7 @@ SUPPORTED_MODELS = {
     "random_forest",
     "extra_trees",
     "gradient_boosting",
+    "hist_gradient_boosting",
     "adaboost",
 }
 

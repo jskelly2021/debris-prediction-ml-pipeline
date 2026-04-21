@@ -1,4 +1,4 @@
-batch_name: dataset_comparison
+batch_name: hist_gb
 base_config: config/h9_v4.yaml
 output_root: outputs/batches
 
