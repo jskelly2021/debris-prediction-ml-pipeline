@@ -1,5 +1,5 @@
 batch_name: dataset_comparison
-base_config: config/h9_v4.yaml
+base_config: config/h8_v1.yaml
 output_root: outputs/batches
 
 experiments:
