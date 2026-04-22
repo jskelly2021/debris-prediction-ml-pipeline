@@ -1,0 +1,6 @@
+analysis_name: learning_rate_h8_bt
+base_config: config/h8_v1.yaml
+output_root: outputs/analyses
+label_name: BT
+parameter: learning_rate
+values: [0.01, 0.02, 0.03, 0.04, 0.05, 0.09, 0.10, 0.15, 0.2, 0.3]

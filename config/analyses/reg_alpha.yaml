@@ -1,0 +1,6 @@
+analysis_name: reg_alpha_h8_bt
+base_config: config/h8_v1.yaml
+output_root: outputs/analyses
+label_name: BT
+parameter: reg_alpha
+values: [0, 0.1, 1, 5, 10, 50, 100]

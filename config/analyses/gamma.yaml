@@ -1,0 +1,6 @@
+analysis_name: gamma_h8_bt
+base_config: config/h8_v1.yaml
+output_root: outputs/analyses
+label_name: BT
+parameter: gamma
+values: [0.0001, 0.001, 0.01, 0.1, 0.2, 0.3, 0.6, 1.0]

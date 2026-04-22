@@ -1,0 +1,6 @@
+analysis_name: subsample_h8_bt
+base_config: config/h8_v1.yaml
+output_root: outputs/analyses
+label_name: BT
+parameter: subsample
+values: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]

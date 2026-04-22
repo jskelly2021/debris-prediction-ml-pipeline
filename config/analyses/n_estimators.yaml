@@ -3,4 +3,4 @@ base_config: config/h8_v1.yaml
 output_root: outputs/analyses
 label_name: BT
 parameter: n_estimators
-values: [50, 100, 250, 500, 1000]
+values: [5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 140, 160, 180, 200, 250, 300, 500, 700, 900, 1000]
