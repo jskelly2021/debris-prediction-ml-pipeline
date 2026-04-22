@@ -7,19 +7,19 @@ This project trains a multi-label two-head XGBoost model from a YAML config file
 From the repository root:
 
 ```bash
-python src/main.py config/bt_only.yaml
+python run_single.py config/bt_only.yaml
 ```
 
 You can also run a different config, for example:
 
 ```bash
-python src/main.py config/hex9_v4.yaml
+python run_single.py config/hex9_v4.yaml
 ```
 
 ## Optional flags
 
 ```bash
-python src/main.py config/bt_only.yaml --save --plots --feature_importance --run-id my_run
+python run_single.py config/bt_only.yaml --save --plots --feature_importance --run-id my_run
 ```
 
 - `--save` saves metrics output.

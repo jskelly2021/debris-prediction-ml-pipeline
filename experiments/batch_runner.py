@@ -11,7 +11,7 @@ from experiments.override_utils import (
     load_config_dict,
     validate_resolved_config,
 )
-from main import run_experiment
+from run_single import run_experiment
 
 
 FAILED_RUN_COLUMNS = ["name", "run_id", "status", "error_message"]
