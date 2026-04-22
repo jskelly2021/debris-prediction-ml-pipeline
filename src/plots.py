@@ -278,3 +278,26 @@ def save_multilabel_dashboards(model, splits, output_dir, top_n_features=15):
             )
 
     log.info(f"Saved plots to: {output_dir}")
+
+
+def save_overfit_metric_plot(results_df, metric_name: str, parameter_name: str, out_path):
+    """Save a train/val/test metric-vs-complexity plot."""
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    x = results_df["parameter_value"]
+
+    for split_name, color in (("train", "tab:blue"), ("val", "tab:orange"), ("test", "tab:green")):
+        column_name = f"{split_name}_{metric_name}"
+        if column_name not in results_df.columns:
+            continue
+
+        ax.plot(x, results_df[column_name], marker="o", label=split_name, color=color)
+
+    ax.set_xlabel(parameter_name)
+    ax.set_ylabel(metric_name)
+    ax.set_title(f"{metric_name} vs {parameter_name}")
+    ax.legend(loc="best")
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)

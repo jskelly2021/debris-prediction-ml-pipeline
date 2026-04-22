@@ -142,6 +142,43 @@ def build_summary_by_experiment(
     return summary
 
 
+def build_summary_by_experiment_label(
+    combined_results: pd.DataFrame,
+    experiment_order: list[str],
+) -> pd.DataFrame:
+    """Build one summary row per experiment and label."""
+
+    columns = [
+        "experiment_name",
+        "run_id",
+        "label",
+        "f1",
+        "roc_auc",
+        "r2",
+        "rmse",
+        "nrmse",
+        "cov",
+        "percent_error_mean",
+        "classifier_model",
+        "regressor_model",
+        "n_features",
+    ]
+    if combined_results.empty:
+        return pd.DataFrame(columns=columns)
+
+    label_order = _label_order_frame(combined_results)
+    summary = combined_results[columns].copy()
+
+    order_lookup = {name: index for index, name in enumerate(experiment_order)}
+    summary["_experiment_order"] = summary["experiment_name"].map(order_lookup).fillna(len(order_lookup))
+    summary = summary.merge(label_order, on="label", how="left")
+    summary = summary.sort_values(
+        ["_experiment_order", "_label_position"],
+        kind="mergesort",
+    ).drop(columns=["_experiment_order", "_label_position"])
+    return summary.reset_index(drop=True)
+
+
 def build_best_classification_runs(
     combined_results: pd.DataFrame,
     experiment_order: list[str],

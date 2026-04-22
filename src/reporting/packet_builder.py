@@ -11,6 +11,7 @@ from reporting.summary_tables import (
     build_best_classification_runs,
     build_best_regression_runs,
     build_summary_by_experiment,
+    build_summary_by_experiment_label,
     build_summary_by_label,
 )
 
@@ -18,6 +19,7 @@ from reporting.summary_tables import (
 TABLE_FILENAMES = {
     "summary_by_label": "summary_by_label.csv",
     "summary_by_experiment": "summary_by_experiment.csv",
+    "summary_by_experiment_label": "summary_by_experiment_label.csv",
     "best_classification_runs": "best_classification_runs.csv",
     "best_regression_runs": "best_regression_runs.csv",
 }
@@ -55,6 +57,10 @@ class ResearchPacketBuilder:
                 experiment_order=experiment_order,
             ),
             "summary_by_experiment": build_summary_by_experiment(
+                batch_artifacts.combined_results,
+                experiment_order=experiment_order,
+            ),
+            "summary_by_experiment_label": build_summary_by_experiment_label(
                 batch_artifacts.combined_results,
                 experiment_order=experiment_order,
             ),

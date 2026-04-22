@@ -53,6 +53,9 @@ def render_report(
     lines.append("")
     lines.append(dataframe_to_markdown(tables["summary_by_experiment"]))
     lines.append("")
+    lines.append("### Summary by Experiment and Label")
+    lines.append("")
+    lines.extend(render_experiment_label_tables(tables["summary_by_experiment_label"]))
     lines.append("### Best Classification Runs")
     lines.append("")
     lines.append(dataframe_to_markdown(tables["best_classification_runs"]))
@@ -169,6 +172,22 @@ def dataframe_to_markdown(df: pd.DataFrame) -> str:
     ]
     markdown_lines.extend("| " + " | ".join(row) + " |" for row in rows)
     return "\n".join(markdown_lines)
+
+
+def render_experiment_label_tables(df: pd.DataFrame) -> list[str]:
+    """Render one summary-by-experiment table per label."""
+
+    if df.empty:
+        return ["_No rows._", ""]
+
+    lines: list[str] = []
+    for label in df["label"].drop_duplicates():
+        label_df = df[df["label"] == label].drop(columns=["label"]).reset_index(drop=True)
+        lines.append(f"#### Label: {label}")
+        lines.append("")
+        lines.append(dataframe_to_markdown(label_df))
+        lines.append("")
+    return lines
 
 
 def _format_markdown_cell(value) -> str:
