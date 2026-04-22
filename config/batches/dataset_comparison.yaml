@@ -1,4 +1,4 @@
-batch_name: hist_gb
+batch_name: dataset_comparison
 base_config: config/h9_v4.yaml
 output_root: outputs/batches
 
@@ -8,24 +8,39 @@ experiments:
     overrides:
       data:
         data_path: data/hex9_v4.csv
-      training:
-        smote: true
-        scale_pos_weight: false
 
   - name: h8_v1
     run_id: h8_v1
     overrides:
       data:
         data_path: data/h8_debrisv1_2.csv
-      training:
-        smote: true
-        scale_pos_weight: false
 
   - name: h9_stpeters
     run_id: h9_stpeters
     overrides:
       data:
         data_path: data/H9_StPetersberg_only_2.csv
-      training:
-        smote: true
-        scale_pos_weight: false
+
+  - name: grid05_v1
+    run_id: grid05_v1
+    overrides:
+      data:
+        data_path: data/Grid05_v1_2.csv
+
+  - name: gride_h8_v1
+    run_id: gride_h8_v1
+    overrides:
+      data:
+        data_path: data/GrideH8_v1_2.csv
+
+  - name: gride_h9_stpet
+    run_id: gride_h9_stpet
+    overrides:
+      data:
+        data_path: data/GrideH9_StPet_2.csv
+
+  - name: gride_h9_v1
+    run_id: gride_h9_v1
+    overrides:
+      data:
+        data_path: data/GrideH9_v1_2.csv

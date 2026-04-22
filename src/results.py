@@ -57,6 +57,9 @@ def print_metrics(metrics):
         log.body(f"RMSE     : {regression.rmse}")
         log.body(f"MAE      : {regression.mae}")
         log.body(f"R²       : {regression.r2}")
+        log.body(f"NRMSE    : {regression.nrmse}")
+        log.body(f"COV      : {regression.cov}")
+        log.body(f"%ErrMean : {regression.percent_error_mean}")
 
 
 def metrics_to_dataframe(metrics, experiment_config: ExperimentConfig, run_id=None, n_features=None):
@@ -101,6 +104,9 @@ def metrics_to_dataframe(metrics, experiment_config: ExperimentConfig, run_id=No
             "rmse": r.rmse,
             "mae": r.mae,
             "r2": r.r2,
+            "nrmse": r.nrmse,
+            "cov": r.cov,
+            "percent_error_mean": r.percent_error_mean,
             "status": "success",
             "error_message": None,
         })

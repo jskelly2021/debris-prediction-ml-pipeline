@@ -50,6 +50,9 @@ class RegressionMetrics:
     rmse: float
     mae: float
     r2: float
+    nrmse: float
+    cov: float
+    percent_error_mean: float
 
     def to_dict(self):
         """Return metrics as a plain dictionary."""
@@ -59,6 +62,9 @@ class RegressionMetrics:
             "rmse": self.rmse,
             "mae": self.mae,
             "r2": self.r2,
+            "nrmse": self.nrmse,
+            "cov": self.cov,
+            "percent_error_mean": self.percent_error_mean,
         }
 
 
@@ -93,11 +99,39 @@ def compute_regression_metrics(y_true, y_pred):
             rmse=np.nan,
             mae=np.nan,
             r2=np.nan,
+            nrmse=np.nan,
+            cov=np.nan,
+            percent_error_mean=np.nan,
         )
+
+    rmse = float(np.sqrt(mean_squared_error(y_true, y_pred)))
+    mae = float(mean_absolute_error(y_true, y_pred))
+    r2 = float(r2_score(y_true, y_pred)) if len(y_true) > 1 else np.nan
+
+    mean_true = np.mean(y_true)
+    std_true = np.std(y_true)
+
+    if np.isclose(mean_true, 0.0):
+        nrmse = np.nan
+        cov = np.nan
+    else:
+        nrmse = float(rmse / mean_true)
+        cov = float(std_true / mean_true)
+
+    valid_mask = ~np.isclose(y_true, 0.0)
+    if np.any(valid_mask):
+        percent_error_mean = float(
+            np.mean((y_pred[valid_mask] - y_true[valid_mask]) / y_true[valid_mask]) * 100
+        )
+    else:
+        percent_error_mean = np.nan
 
     return RegressionMetrics(
         n_samples=int(len(y_true)),
-        rmse=float(np.sqrt(mean_squared_error(y_true, y_pred))),
-        mae=float(mean_absolute_error(y_true, y_pred)),
-        r2=float(r2_score(y_true, y_pred)) if len(y_true) > 1 else np.nan,
+        rmse=rmse,
+        mae=mae,
+        r2=r2,
+        nrmse=nrmse,
+        cov=cov,
+        percent_error_mean=percent_error_mean,
     )

@@ -33,6 +33,7 @@ CONFIG_SCHEMA = {
     "training": TrainingConfig,
     "models": ModelSelectionConfig,
 }
+REPLACE_DICT_SENTINEL = "__replace__"
 
 
 def load_config_dict(config_path: str | Path) -> dict:
@@ -77,7 +78,13 @@ def _deep_merge(target: dict, overrides: dict, path: tuple[str, ...]) -> None:
 
         current_value = target.get(key)
         if isinstance(current_value, dict) and isinstance(value, dict):
-            _deep_merge(current_value, value, path + (key,))
+            if value.get(REPLACE_DICT_SENTINEL) is True:
+                replacement = deepcopy(value)
+                replacement.pop(REPLACE_DICT_SENTINEL, None)
+                _validate_nested_keys(current_value, replacement, path + (key,))
+                target[key] = replacement
+            else:
+                _deep_merge(current_value, value, path + (key,))
         else:
             target[key] = deepcopy(value)
 
@@ -101,6 +108,17 @@ def _validate_key(target: dict, key: str, path: tuple[str, ...]) -> None:
     if key not in target:
         parent_path = _format_path(path)
         raise ValueError(f"Unknown nested config key under {parent_path}: {key}")
+
+
+def _validate_nested_keys(target: dict, overrides: dict, path: tuple[str, ...]) -> None:
+    for key, value in overrides.items():
+        if key == REPLACE_DICT_SENTINEL:
+            continue
+
+        _validate_key(target, key, path)
+        current_value = target.get(key)
+        if isinstance(current_value, dict) and isinstance(value, dict):
+            _validate_nested_keys(current_value, value, path + (key,))
 
 
 def _dataclass_field_names(config_class) -> set[str]:

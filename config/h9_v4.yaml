@@ -51,11 +51,11 @@ training:
   scale_pos_weight: false
   log_target_reg: false
   positive_only_regression: true
-  class_tune_mode: random_search
-  reg_tune_mode: random_search
+  class_tune_mode: none
+  reg_tune_mode: none
 
 models:
-  classifier_model: hist_gradient_boosting
-  regressor_model: hist_gradient_boosting
-  classifier_params_path: params/hist_gradient_boosting.yaml
-  regressor_params_path: params/hist_gradient_boosting.yaml
+  classifier_model: xgboost
+  regressor_model: xgboost
+  classifier_params_path: params/xgboost.yaml
+  regressor_params_path: params/xgboost.yaml
